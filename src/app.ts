@@ -2,9 +2,10 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
+import { createUserModule, DrizzleUserRepository } from './modules/user';
 import { exceptionHandler } from './shared/exceptions';
+import { db, passwordHasher } from './shared/infrastructure';
 import { logger } from './shared/logging';
-import { CreateUserRequest, UserResponse } from './shared/openapi/example';
 
 export function createApp() {
   const app = new Elysia()
@@ -50,12 +51,11 @@ export function createApp() {
       },
     )
 
-    /**
-     * API v1 group
-     * .use(createUserModule(deps)) vs.
-     */
-    .group('/api/v1', (api) =>
-      api
+    .group('/api/v1', (api) => {
+      const userRepo = new DrizzleUserRepository(db);
+      const userDeps = { userRepo, passwordHasher };
+
+      return api
         .get(
           '/',
           () => ({
@@ -68,25 +68,8 @@ export function createApp() {
             },
           },
         )
-        .post(
-          '/users',
-          ({ body }) => ({
-            id: crypto.randomUUID(),
-            name: body.name,
-            email: body.email,
-            createdAt: new Date().toISOString(),
-          }),
-          {
-            body: CreateUserRequest,
-            response: UserResponse,
-            detail: {
-              summary: 'Create user',
-              description: 'Example endpoint demonstrating Zod-to-OpenAPI schema mapping',
-              tags: ['Users'],
-            },
-          },
-        ),
-    );
+        .use(createUserModule(userDeps));
+    });
 
   return app;
 }
