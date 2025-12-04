@@ -27,8 +27,9 @@ export default [
       import: importPlugin,
     },
     rules: {
-      ...(tsPlugin.configs.recommended?.rules ?? {}),
+      'no-undef': 'off',
 
+      ...(tsPlugin.configs.recommended?.rules ?? {}),
       ...(eslintConfigPrettier.rules ?? {}),
 
       'no-unused-vars': 'off',
