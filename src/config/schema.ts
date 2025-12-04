@@ -1,8 +1,5 @@
 import { z } from '@/shared/openapi/zod-openapi';
-/**
- * Environment variable validation schema.
- * All env vars are validated at startup (fail-fast).
- */
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -15,6 +12,8 @@ export const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
   OTEL_ENABLED: z.coerce.boolean().default(false),
+
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 
   DEFAULT_LOCALE: z.enum(['en', 'tr']).default('en'),
 });
