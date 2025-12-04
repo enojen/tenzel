@@ -669,54 +669,64 @@ export async function createUser(
 
 ### 6. OpenAPI Integration
 
-OpenAPI documentation is **generated from Zod schemas** using `@anatine/zod-openapi`.
-
-#### Setup
-
-```typescript
-// src/shared/openapi/zod-openapi.ts
-import { extendZodWithOpenApi } from '@anatine/zod-openapi';
-import { z } from 'zod';
-
-// Extend Zod with .openapi() method
-extendZodWithOpenApi(z);
-
-export { z };
-```
+OpenAPI documentation is **generated directly from Zod schemas** using Elysia's native `mapJsonSchema` feature. No additional libraries needed.
 
 #### Schema with OpenAPI Metadata
 
-```typescript
-// Use the extended z from our setup
-import { z } from '@/shared/openapi/zod-openapi';
+Use `.describe()` on Zod fields to add OpenAPI descriptions:
 
-export const userResponseSchema = z
-  .object({
-    id: z.number().openapi({ example: 1 }),
-    email: z.string().openapi({ example: 'user@example.com' }),
-    name: z.string().openapi({ example: 'John Doe' }),
-    createdAt: z.string().datetime().openapi({
-      description: 'Creation timestamp (ISO 8601)',
-      example: '2025-01-01T00:00:00.000Z',
-    }),
-  })
-  .openapi('UserResponse');
+```typescript
+// src/modules/user/api/user.schemas.ts
+import { z } from 'zod';
+import { USER_ROLES, type UserRole } from '../domain/value-objects/user-role.vo';
+
+const userRoleValues = Object.values(USER_ROLES) as [UserRole, ...UserRole[]];
+
+export const createUserRequestSchema = z.object({
+  email: z.string().email().describe('User email address'),
+  name: z.string().min(2).max(255).describe('User display name'),
+  password: z.string().min(8).describe('User password (min 8 characters)'),
+  role: z.enum(userRoleValues).optional().default(USER_ROLES.USER).describe('User role'),
+});
+
+export const userResponseSchema = z.object({
+  id: z.number().int().describe('User ID'),
+  email: z.string().email().describe('User email'),
+  name: z.string().describe('User display name'),
+  createdAt: z.string().datetime().describe('Creation timestamp (ISO 8601)'),
+});
+
+export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+export type UserResponse = z.infer<typeof userResponseSchema>;
 ```
 
 #### Route with OpenAPI
 
+Zod schemas are passed directly to Elysia route options:
+
 ```typescript
-import { generateSchema } from '@anatine/zod-openapi';
+// src/modules/user/api/user.controller.ts
+import { createUserRequestSchema, userResponseSchema } from './user.schemas';
+
+.post(
+  '/',
+  ({ body }) => userService.create(body),
+  {
+    body: createUserRequestSchema,      // Zod schema directly
+    response: userResponseSchema,       // Zod schema directly
+    detail: {
+      summary: 'Create a new user',
+      tags: ['Users'],
+    },
+  }
+)
 
 .get(
   '/:id',
-  handler,
+  ({ params }) => userService.findById(params.id),
   {
-    params: generateSchema(getUserParamsSchema),
-    response: {
-      200: generateSchema(userResponseSchema),
-      404: generateSchema(errorResponseSchema),
-    },
+    params: z.object({ id: z.coerce.number().int() }),
+    response: userResponseSchema,
     detail: {
       summary: 'Get user by ID',
       description: 'Retrieves a user by their unique identifier',

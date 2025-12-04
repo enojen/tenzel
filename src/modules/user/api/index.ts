@@ -1,9 +1,1 @@
-/**
- * User API Placeholder
- *
- * To add here:
- * - user.schemas.ts (Zod + OpenAPI)
- * - user.controller.ts
- */
-
-export {};
+export * from './user.schemas';
