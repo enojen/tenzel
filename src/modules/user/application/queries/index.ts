@@ -1,10 +1,1 @@
-/**
- * User Queries Placeholder
- *
- * Queries to add here:
- * - GetUserByIdQuery
- * - GetUserByEmailQuery
- * - GetAllUsersQuery
- */
-
-export {};
+export * from './get-user-by-id.query';

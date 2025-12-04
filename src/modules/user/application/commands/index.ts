@@ -1,11 +1,1 @@
-/**
- * User Commands Placeholder
- *
- * Commands to add here:
- * - CreateUserCommand
- * - UpdateUserCommand
- * - ChangePasswordCommand
- * - VerifyEmailCommand
- */
-
-export {};
+export * from './create-user.handler';
