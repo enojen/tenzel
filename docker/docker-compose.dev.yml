@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      target: builder
+    volumes:
+      - ../src:/app/src:ro
+      - ../drizzle:/app/drizzle:ro
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+    command: ["bun", "run", "--watch", "src/bootstrap.ts"]

@@ -4,6 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "bun run --watch src/bootstrap.ts",
+    "start": "bun run src/bootstrap.ts",
     "test": "bun test",
     "test:unit": "bun test tests/unit",
     "lint": "eslint \"**/*.{ts,tsx}\" --max-warnings=0",
