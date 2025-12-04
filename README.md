@@ -988,18 +988,51 @@ const userLogger = createModuleLogger('user');
 userLogger.debug({ email }, 'Checking if user exists');
 ```
 
-### OpenTelemetry (Day 2+)
+### OpenTelemetry Tracing
 
-Enable tracing by setting `OTEL_ENABLED=true`.
+The application uses OpenTelemetry for distributed tracing with auto-instrumentation.
 
-```typescript
-// Automatically instruments:
-// - HTTP requests
-// - Database queries
-// - External HTTP calls
+#### 1. Start Jaeger (Trace Backend)
+
+```bash
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
 ```
 
-View traces in Jaeger UI at `http://localhost:16686`.
+#### 2. Enable Tracing
+
+Set in your `.env` file:
+
+```env
+OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+#### 3. Start the Application
+
+```bash
+bun run index.ts
+```
+
+#### 4. View Traces
+
+Open Jaeger UI at **http://localhost:16686** and select the `muhasebat` service.
+
+#### What's Automatically Traced
+
+- HTTP requests/responses
+- Database queries
+- External HTTP calls
+- File system operations
+
+#### Ports Reference
+
+| Port    | Protocol      | Description       |
+| ------- | ------------- | ----------------- |
+| `4318`  | HTTP/protobuf | OTLP trace export |
+| `16686` | HTTP          | Jaeger Web UI     |
 
 ---
 
@@ -1060,12 +1093,11 @@ services:
       timeout: 5s
       retries: 5
 
-  # Day 2+
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
-      - '16686:16686' # UI
-      - '4317:4317' # OTLP gRPC
+      - '16686:16686' # Jaeger UI
+      - '4318:4318' # OTLP HTTP
 ```
 
 ---
@@ -1126,7 +1158,7 @@ Once the server is running, access:
 - [ ] Authorization (RBAC/ABAC)
 - [ ] Redis caching
 - [ ] Event Bus (inter-module communication)
-- [ ] OpenTelemetry tracing
+- [x] OpenTelemetry tracing
 - [ ] Rate limiting
 - [ ] Background jobs (BullMQ)
 - [ ] E2E test suite
