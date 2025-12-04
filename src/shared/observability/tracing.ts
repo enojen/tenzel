@@ -1,5 +1,6 @@
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
@@ -25,7 +26,7 @@ export function initTracing(): void {
       [ATTR_SERVICE_VERSION]: '1.0.0',
     }),
     traceExporter,
-    instrumentations: [getNodeAutoInstrumentations()],
+    instrumentations: [new HttpInstrumentation(), new PgInstrumentation()],
   });
 
   sdk.start();

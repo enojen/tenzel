@@ -1,31 +1,30 @@
 # syntax=docker/dockerfile:1
 
-# ─── Stage 1: Dependencies (production only) ───
-FROM oven/bun:1-alpine AS deps
+# ─── Stage 1: Builder ───
+FROM oven/bun:1-debian AS builder
 WORKDIR /app
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production --ignore-scripts
 
-# ─── Stage 2: Builder (for lint/test) ───
-FROM oven/bun:1-alpine AS builder
-WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --ignore-scripts
-COPY . .
-RUN bun run lint
 
-# ─── Stage 3: Runner (production) ───
-FROM oven/bun:1-alpine AS runner
+COPY . .
+
+RUN bun build --compile --minify --sourcemap=none --target=bun-linux-x64 src/bootstrap.ts --outfile server
+
+# ─── Stage 2: Minimal Runtime ───
+FROM debian:12-slim AS runner
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --no-create-home --shell /usr/sbin/nologin appuser
+
 WORKDIR /app
 
-COPY --from=deps --chown=bun:bun /app/node_modules ./node_modules
-COPY --chown=bun:bun package.json tsconfig.json ./
-COPY --chown=bun:bun src ./src
-COPY --chown=bun:bun drizzle ./drizzle
-COPY --chown=bun:bun drizzle.config.ts ./
+COPY --from=builder /app/server /app/server
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-USER bun
-CMD ["bun", "run", "src/bootstrap.ts"]
+USER appuser
+CMD ["/app/server"]
