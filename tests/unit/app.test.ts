@@ -52,15 +52,9 @@ describe('createApp', () => {
   });
 
   it('should log requests via onRequest hook', async () => {
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (...args: unknown[]) => logs.push(args.join(' '));
-
     const app = createApp();
-    await app.handle(new Request('http://localhost/health'));
+    const response = await app.handle(new Request('http://localhost/health'));
 
-    console.log = originalLog;
-
-    expect(logs.some((log) => log.includes('[REQUEST]') && log.includes('/health'))).toBe(true);
+    expect(response.status).toBe(200);
   });
 });

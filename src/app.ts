@@ -2,6 +2,7 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
+import { logger } from './shared/logging';
 import { CreateUserRequest, UserResponse } from './shared/openapi/example';
 
 export function createApp() {
@@ -12,7 +13,7 @@ export function createApp() {
      */
     .onRequest(({ request }) => {
       const url = new URL(request.url);
-      console.log(`[REQUEST] ${request.method} ${url.pathname}`);
+      logger.info({ method: request.method, path: url.pathname }, 'Request received');
     })
 
     /**
@@ -20,7 +21,7 @@ export function createApp() {
      * TASK-018–021
      */
     .onError(({ error, set }) => {
-      console.error('[ERROR]', error);
+      logger.error({ error }, 'Request error occurred');
 
       if (!set.status || set.status === 200) {
         set.status = 500;
