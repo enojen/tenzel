@@ -1,0 +1,80 @@
+# -----------------------------
+# Dependencies
+# -----------------------------
+node_modules/
+.bun/
+
+# Bun lockfile
+bun.lockb
+
+# -----------------------------
+# Build & Output
+# -----------------------------
+dist/
+build/
+.out/
+.tmp/
+.temp/
+
+# Drizzle
+drizzle/meta/
+drizzle/*.sqlite
+
+# Bun test / coverage
+coverage/
+*.lcov
+
+# -----------------------------
+# Environment & Secrets
+# -----------------------------
+.env
+.env.*
+!.env.example
+
+# Local DB / data
+*.db
+*.sqlite
+*.sqlite3
+
+# -----------------------------
+# Logs
+# -----------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# -----------------------------
+# OS / Editor junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+.vscode-test/
+
+# IntelliJ / WebStorm / IDEA
+.idea/
+*.iml
+
+# -----------------------------
+# Docker
+# -----------------------------
+docker-data/
+docker/postgres-data/
+docker/redis-data/
+
+# -----------------------------
+# TypeScript
+# -----------------------------
+*.tsbuildinfo
+
+# -----------------------------
+# Tests & temp
+# -----------------------------
+jest-cache/
+jest-report/
+.nyc_output/
