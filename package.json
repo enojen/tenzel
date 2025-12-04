@@ -4,6 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
     "lint": "eslint \"**/*.{ts,tsx}\" --max-warnings=0",
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "format": "prettier . --check",
@@ -28,7 +30,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@anatine/zod-openapi": "^2.2.8",
     "@elysiajs/openapi": "^1.4.11",
     "@elysiajs/swagger": "^1.3.1",
     "drizzle-orm": "^0.44.7",

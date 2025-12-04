@@ -78,3 +78,5 @@ docker/redis-data/
 jest-cache/
 jest-report/
 .nyc_output/
+
+task.md

@@ -1,5 +1,8 @@
 import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
+import { z } from 'zod';
+
+import { CreateUserRequest, UserResponse } from './shared/openapi/example';
 
 export function createApp() {
   const app = new Elysia()
@@ -33,10 +36,14 @@ export function createApp() {
 
     /**
      * OpenAPI / Swagger UI
+     * Maps Zod v4 schemas to JSON Schema for OpenAPI generation
      */
     .use(
       openapi({
         path: '/openapi',
+        mapJsonSchema: {
+          zod: z.toJSONSchema,
+        },
         documentation: {
           info: {
             title: 'Modular Monolith Starter API',
@@ -77,10 +84,9 @@ export function createApp() {
      * API v1 group
      * .use(createUserModule(deps)) vs.
      */
-    .group(
-      '/api/v1',
-      (api) =>
-        api.get(
+    .group('/api/v1', (api) =>
+      api
+        .get(
           '/',
           () => ({
             message: 'API v1 is up',
@@ -91,8 +97,25 @@ export function createApp() {
               tags: ['System'],
             },
           },
+        )
+        .post(
+          '/users',
+          ({ body }) => ({
+            id: crypto.randomUUID(),
+            name: body.name,
+            email: body.email,
+            createdAt: new Date().toISOString(),
+          }),
+          {
+            body: CreateUserRequest,
+            response: UserResponse,
+            detail: {
+              summary: 'Create user',
+              description: 'Example endpoint demonstrating Zod-to-OpenAPI schema mapping',
+              tags: ['Users'],
+            },
+          },
         ),
-      // .use(createUserModule(deps))  // TASK-037
     );
 
   return app;

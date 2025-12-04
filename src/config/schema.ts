@@ -1,4 +1,4 @@
-import { z } from '@/shared/openapi/zod-openapi';
+import { z } from 'zod';
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -11,7 +11,10 @@ export const envSchema = z.object({
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  OTEL_ENABLED: z.coerce.boolean().default(false),
+  OTEL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 
