@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { DEFAULT_LOCALE, LOCALES } from '../shared/types';
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -18,7 +20,7 @@ export const envSchema = z.object({
 
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 
-  DEFAULT_LOCALE: z.enum(['en', 'tr']).default('en'),
+  DEFAULT_LOCALE: z.enum(LOCALES).default(DEFAULT_LOCALE),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

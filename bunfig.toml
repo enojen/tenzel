@@ -1,0 +1,3 @@
+[test]
+dotenv = false
+preload = ["./tests/setup.ts"]

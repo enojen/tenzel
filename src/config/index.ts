@@ -48,4 +48,15 @@ function buildConfig() {
   };
 }
 
-export const config: AppConfig = cachedConfig ?? (cachedConfig = buildConfig());
+export function getConfig(): AppConfig {
+  if (!cachedConfig) {
+    cachedConfig = buildConfig();
+  }
+  return cachedConfig;
+}
+
+export function _resetConfigForTesting(): void {
+  cachedConfig = null;
+}
+
+export const config: AppConfig = getConfig();

@@ -1,0 +1,11 @@
+{
+  "errors.internal": "An unexpected error occurred",
+  "errors.bad_request": "Invalid request",
+  "errors.unauthorized": "Authentication required",
+  "errors.forbidden": "Access denied",
+  "errors.not_found": "Resource not found",
+  "errors.conflict": "Resource already exists",
+  "errors.validation": "Validation failed",
+  "errors.user.not_found": "User not found",
+  "errors.user.already_exists": "User with email {email} already exists"
+}

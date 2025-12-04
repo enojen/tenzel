@@ -1,0 +1,11 @@
+{
+  "errors.internal": "Beklenmedik bir hata olustu",
+  "errors.bad_request": "Gecersiz istek",
+  "errors.unauthorized": "Kimlik dogrulamasi gerekli",
+  "errors.forbidden": "Erisim engellendi",
+  "errors.not_found": "Kaynak bulunamadi",
+  "errors.conflict": "Kaynak zaten mevcut",
+  "errors.validation": "Dogrulama hatasi",
+  "errors.user.not_found": "Kullanici bulunamadi",
+  "errors.user.already_exists": "{email} adresine sahip kullanici zaten mevcut"
+}

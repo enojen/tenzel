@@ -41,14 +41,11 @@ describe('createApp', () => {
     expect(body.info.title).toBe('Modular Monolith Starter API');
   });
 
-  it('GET /nonexistent should trigger error handler', async () => {
+  it('GET /nonexistent should return 404', async () => {
     const app = createApp();
     const response = await app.handle(new Request('http://localhost/nonexistent'));
-    const body = await response.json();
 
-    expect(body.error).toBeDefined();
-    expect(body.error.message).toBeDefined();
-    expect(body.error.timestamp).toBeDefined();
+    expect(response.status).toBe(404);
   });
 
   it('should log requests via onRequest hook', async () => {

@@ -2,43 +2,17 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
+import { exceptionHandler } from './shared/exceptions';
 import { logger } from './shared/logging';
 import { CreateUserRequest, UserResponse } from './shared/openapi/example';
 
 export function createApp() {
   const app = new Elysia()
-    /**
-     *  Global request log
-     *  (TASK-016)
-     */
+    .use(exceptionHandler)
     .onRequest(({ request }) => {
       const url = new URL(request.url);
       logger.info({ method: request.method, path: url.pathname }, 'Request received');
     })
-
-    /**
-     * Global error handler
-     * TASK-018–021
-     */
-    .onError(({ error, set }) => {
-      logger.error({ error }, 'Request error occurred');
-
-      if (!set.status || set.status === 200) {
-        set.status = 500;
-      }
-
-      return {
-        error: {
-          message: error instanceof Error ? error.message : 'Unexpected error',
-          timestamp: new Date().toISOString(),
-        },
-      };
-    })
-
-    /**
-     * OpenAPI / Swagger UI
-     * Maps Zod v4 schemas to JSON Schema for OpenAPI generation
-     */
     .use(
       openapi({
         path: '/openapi',
@@ -58,14 +32,9 @@ export function createApp() {
         },
       }),
     )
-
     .get('/favicon.ico', () => {
       return Bun.file('src/public/favicon.ico');
     })
-
-    /**
-     * Health check
-     */
     .get(
       '/health',
       () => ({
