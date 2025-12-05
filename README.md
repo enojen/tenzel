@@ -29,6 +29,7 @@ A production-ready **Modular Monolith** boilerplate with **Domain-Driven Design*
   - [Security](#security)
   - [OpenAPI Documentation](#openapi-documentation)
 - [Module Guide](#module-guide)
+- [Task Creation Guideline](#task-creation-guideline)
 - [Testing](#testing)
 - [Docker](#docker)
 - [API Reference](#api-reference)
@@ -460,6 +461,157 @@ Modules are registered as Elysia plugins with dependency injection:
 - Modules are mounted under `/api/v1` with their own prefix
 
 > **Detailed Guide:** See [docs/module-registration.md](docs/module-registration.md) for step-by-step instructions with code examples.
+
+---
+
+## Task Creation Guideline
+
+Guidelines for breaking down new module development into manageable tasks.
+
+### Task ID Format
+
+```
+{WORD}-{XXX}
+```
+
+- **WORD**: Random English word (e.g., NOVA, BOLT, APEX, FLUX, CORE)
+- **XXX**: Sequential 3-digit number
+
+Examples: `NOVA-001`, `BOLT-042`, `APEX-103`
+
+### Optimal Task Size
+
+| Too Small (Avoid)  | Good Size             | Too Large (Avoid)         |
+| ------------------ | --------------------- | ------------------------- |
+| Create single file | Create entire layer   | Full module in one task   |
+| Add one export     | 2-4 related endpoints | All 10+ endpoints at once |
+| Single test file   | Layer + its tests     | Multiple modules          |
+
+### Module Creation Task Template
+
+#### Phase 1: Foundation (Sequential)
+
+| Task | Name                            | Description                                         |
+| ---- | ------------------------------- | --------------------------------------------------- |
+| 1    | **Domain Layer**                | Entity, repository interface, value objects, events |
+| 2    | **Infrastructure - Table**      | Drizzle table, enums, DB types, Zod schemas         |
+| 3    | **Infrastructure - Repository** | Repository implementation (all CRUD methods)        |
+| 4    | **Module Exceptions**           | Module-specific exception classes                   |
+
+#### Phase 2: API Endpoints (Can be Parallel)
+
+For modules with many endpoints, **group by 3-5 related endpoints per task**:
+
+| Task | Name                    | Example Grouping                          |
+| ---- | ----------------------- | ----------------------------------------- |
+| 5    | **API - CRUD Core**     | create, getById, getAll, update, delete   |
+| 6    | **API - Status Ops**    | activate, deactivate, suspend, archive    |
+| 7    | **API - Relations**     | addItem, removeItem, getItems, updateItem |
+| 8    | **API - Search/Filter** | search, filter, paginate, sort            |
+| 9    | **API - Bulk Ops**      | bulkCreate, bulkUpdate, bulkDelete        |
+
+#### Phase 3: Testing & Finalization
+
+| Task | Name                         | Description                            |
+| ---- | ---------------------------- | -------------------------------------- |
+| 10   | **Unit Tests**               | Domain entity, mapper, schemas tests   |
+| 11   | **Integration Tests**        | Repository tests with DB               |
+| 12   | **E2E Tests**                | API endpoint tests                     |
+| 13   | **Migration & Registration** | Generate migration, register in app.ts |
+
+### Cross-Module Dependencies
+
+When a module depends on another module that doesn't exist:
+
+1. **Create dependency tasks FIRST** with `[DEPENDENCY]` tag
+2. Add note about which module requires it
+3. Link tasks in description
+
+```markdown
+- [ ] NOVA-020: [DEPENDENCY] category module - domain layer (required by: product)
+- [ ] NOVA-021: [DEPENDENCY] category module - infrastructure
+- [ ] NOVA-022: [DEPENDENCY] category module - API layer
+- [ ] NOVA-023: product module - domain layer (depends on: NOVA-022)
+```
+
+### Commit Convention
+
+After each task completion, commit with task ID:
+
+```bash
+git commit -m "TASK-ID: brief description
+
+- bullet point of changes
+- another change
+
+Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>"
+```
+
+### Full Example: Product Module (10 Endpoints)
+
+Assuming product depends on **category** module (not yet created):
+
+```markdown
+## Category Module (Dependency)
+
+- [ ] BOLT-040: category module - domain layer
+- [ ] BOLT-041: category module - infrastructure (table + repository)
+- [ ] BOLT-042: category module - API (CRUD endpoints)
+- [ ] BOLT-043: category module - tests (unit + integration + e2e)
+
+## Product Module
+
+- [ ] BOLT-044: product module - domain layer (entity, repo interface, VOs)
+- [ ] BOLT-045: product module - infrastructure table & DB schemas
+- [ ] BOLT-046: product module - repository implementation
+- [ ] BOLT-047: product module - exceptions
+- [ ] BOLT-048: product module - API core (create, get, update, delete, list)
+- [ ] BOLT-049: product module - API status (activate, deactivate, archive)
+- [ ] BOLT-050: product module - API relations (category assignment)
+- [ ] BOLT-051: product module - unit tests
+- [ ] BOLT-052: product module - integration tests
+- [ ] BOLT-053: product module - e2e tests
+- [ ] BOLT-054: product module - migration & app registration
+```
+
+### Task Description Template
+
+```markdown
+## BOLT-048: product module - API core
+
+**Endpoints:**
+
+- POST /products (create)
+- GET /products/:id (getById)
+- GET /products (list with pagination)
+- PUT /products/:id (update)
+- DELETE /products/:id (delete)
+
+**Dependencies:** BOLT-046, BOLT-047
+
+**Files to create/modify:**
+
+- src/modules/product/api/product.schemas.ts
+- src/modules/product/api/product.controller.ts
+- src/modules/product/application/commands/create-product.handler.ts
+- src/modules/product/application/queries/get-product.query.ts
+
+**Acceptance:**
+
+- [ ] All endpoints working
+- [ ] OpenAPI schemas documented
+- [ ] Lint & typecheck pass
+
+**On completion:** Commit with "BOLT-048: product module - API core endpoints"
+```
+
+### Tips for AI Agents
+
+1. **Always commit after task** - use task ID in commit message
+2. **Check dependencies first** - create missing module tasks before proceeding
+3. **Group related endpoints** - 3-5 endpoints per task is optimal
+4. **Run tests before commit** - `bun test`, `bun run lint`, `bun run typecheck`
+5. **Reference existing patterns** - "follow user module structure"
 
 ---
 
