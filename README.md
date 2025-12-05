@@ -35,6 +35,7 @@ A production-ready **Modular Monolith** boilerplate with **Domain-Driven Design*
 - [API Reference](#api-reference)
 - [Environment Variables](#environment-variables)
 - [Scripts Reference](#scripts-reference)
+- [Contributing](#contributing)
 
 ---
 
@@ -766,6 +767,65 @@ docker compose --profile observability up -d
 | `bun run db:migrate`  | Apply migrations                         |
 | `bun run db:push`     | Push schema (dev only)                   |
 | `bun run db:studio`   | Open Drizzle Studio                      |
+
+---
+
+## Contributing
+
+We welcome contributions! Please follow these guidelines to ensure a smooth process.
+
+### Getting Started
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/tenzel.git`
+3. Install dependencies: `bun install`
+4. Create a feature branch: `git checkout -b feature/your-feature-name`
+
+### Branch Naming
+
+| Type     | Pattern                | Example                     |
+| -------- | ---------------------- | --------------------------- |
+| Feature  | `feature/description`  | `feature/add-auth-module`   |
+| Bug Fix  | `fix/description`      | `fix/user-validation-error` |
+| Refactor | `refactor/description` | `refactor/improve-logging`  |
+| Docs     | `docs/description`     | `docs/update-readme`        |
+| Chore    | `chore/description`    | `chore/update-deps`         |
+
+### Commit Messages
+
+Follow conventional commits format:
+
+```
+type(scope): brief description
+
+- detailed change 1
+- detailed change 2
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+### Pull Request Process
+
+1. Ensure all tests pass: `bun test`
+2. Run linting: `bun run lint`
+3. Run type checking: `bun run typecheck`
+4. Update documentation if needed
+5. Create a pull request with a clear description
+
+### Code Style
+
+- Follow existing patterns in the codebase
+- Use TypeScript strict mode
+- Add Zod schemas for runtime validation
+- Write tests for new features
+- Keep modules self-contained following the module structure
+
+### Development Workflow
+
+1. Pick an issue or create one for your feature
+2. Follow the [Task Creation Guideline](#task-creation-guideline) for complex features
+3. Make small, focused commits
+4. Request review when ready
 
 ---
 
