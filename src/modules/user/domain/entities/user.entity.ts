@@ -10,6 +10,7 @@ export interface UserProps extends EntityProps {
   status: UserStatus;
   isEmailVerified: boolean;
   passwordHash: string;
+  deletedAt?: Date;
 }
 
 export class User extends AggregateRoot<UserProps> {
@@ -37,6 +38,14 @@ export class User extends AggregateRoot<UserProps> {
     return this.props.passwordHash;
   }
 
+  get deletedAt(): Date | undefined {
+    return this.props.deletedAt;
+  }
+
+  get isDeleted(): boolean {
+    return !!this.props.deletedAt;
+  }
+
   verifyEmail(): void {
     this.props.isEmailVerified = true;
     this.props.updatedAt = new Date();
@@ -60,6 +69,26 @@ export class User extends AggregateRoot<UserProps> {
   suspend(): void {
     this.props.status = 'suspended';
     this.props.updatedAt = new Date();
+  }
+
+  delete(): void {
+    this.props.deletedAt = new Date();
+    this.props.updatedAt = new Date();
+    this.addDomainEvent({
+      eventName: 'UserDeleted',
+      occurredAt: new Date(),
+      aggregateId: this.id,
+    });
+  }
+
+  restore(): void {
+    this.props.deletedAt = undefined;
+    this.props.updatedAt = new Date();
+    this.addDomainEvent({
+      eventName: 'UserRestored',
+      occurredAt: new Date(),
+      aggregateId: this.id,
+    });
   }
 
   static create(props: Omit<UserProps, 'id'> & { id?: number | string }): User {

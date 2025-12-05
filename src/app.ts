@@ -5,15 +5,11 @@ import { z } from 'zod';
 import { createUserModule, DrizzleUserRepository } from './modules/user';
 import { exceptionHandler } from './shared/exceptions';
 import { checkDatabaseHealth, db, passwordHasher } from './shared/infrastructure';
-import { logger } from './shared/logging';
+import { requestIdMiddleware } from './shared/middleware';
 
 export function createApp() {
   const app = new Elysia()
-    .use(exceptionHandler)
-    .onRequest(({ request }) => {
-      const url = new URL(request.url);
-      logger.info({ method: request.method, path: url.pathname }, 'Request received');
-    })
+    .use(requestIdMiddleware)
     .use(
       openapi({
         path: '/openapi',
@@ -33,6 +29,7 @@ export function createApp() {
         },
       }),
     )
+    .use(exceptionHandler)
     .get('/favicon.ico', ({ redirect }) => {
       return redirect(
         'https://icons.iconarchive.com/icons/tribalmarkings/colorflow/32/umbrella-corp-icon.png',

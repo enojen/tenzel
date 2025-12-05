@@ -13,4 +13,5 @@ export const usersTable = pgTable('users', {
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });

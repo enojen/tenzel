@@ -1,9 +1,12 @@
 import type {
   FindAllOptions,
   UserRepository,
+  UserSortField,
 } from '@/modules/user/domain/repositories/user.repository';
+import type { PaginatedResult, PaginationParams, SortOption } from '@/shared/types';
 
 import { User } from '@/modules/user/domain/entities/user.entity';
+import { buildPaginationLinks, buildPaginationMeta } from '@/shared/types';
 
 export class InMemoryUserRepository implements UserRepository {
   private users: Map<number, User> = new Map();
@@ -65,7 +68,7 @@ export class InMemoryUserRepository implements UserRepository {
   }
 
   async findAll(options?: FindAllOptions): Promise<User[]> {
-    let users = Array.from(this.users.values());
+    let users = Array.from(this.users.values()).filter((u) => !u.isDeleted);
 
     if (options?.offset) {
       users = users.slice(options.offset);
@@ -76,6 +79,28 @@ export class InMemoryUserRepository implements UserRepository {
     }
 
     return users;
+  }
+
+  async findAllPaginated(
+    options: PaginationParams & { orderBy?: SortOption<{ [K in UserSortField]: unknown }>[] },
+  ): Promise<PaginatedResult<User>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const offset = (page - 1) * pageSize;
+
+    let users = Array.from(this.users.values()).filter((u) => !u.isDeleted);
+    const total = users.length;
+
+    users = users.slice(offset, offset + pageSize);
+
+    const meta = buildPaginationMeta(total, page, pageSize);
+    const links = buildPaginationLinks('/api/v1/users', page, pageSize, meta.totalPages);
+
+    return { data: users, meta, links };
+  }
+
+  async count(): Promise<number> {
+    return Array.from(this.users.values()).filter((u) => !u.isDeleted).length;
   }
 
   clear(): void {

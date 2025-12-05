@@ -8,8 +8,23 @@ function buildConfig() {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error('Invalid environment variables:', parsed.error);
-    throw new Error('Environment validation failed');
+    const errors = parsed.error.issues.map((issue) => ({
+      path: issue.path.join('.') || 'unknown',
+      message: issue.message,
+      expected: 'expected' in issue ? issue.expected : undefined,
+      received: 'received' in issue ? issue.received : undefined,
+    }));
+
+    console.error('\n❌ Environment validation failed:\n');
+    errors.forEach(({ path, message, expected, received }) => {
+      console.error(`  ${path}:`);
+      console.error(`    └─ ${message}`);
+      if (expected) console.error(`       Expected: ${expected}`);
+      if (received !== undefined) console.error(`       Received: ${received}`);
+    });
+    console.error('\n📋 Check .env.example for required variables\n');
+
+    throw new Error(`Environment validation failed: ${errors.length} error(s)`);
   }
 
   const env = parsed.data;

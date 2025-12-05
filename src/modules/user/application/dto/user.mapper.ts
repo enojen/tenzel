@@ -28,6 +28,7 @@ export const userMapper = {
       passwordHash: dbUser.passwordHash,
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
+      deletedAt: dbUser.deletedAt ?? undefined,
     });
   },
 

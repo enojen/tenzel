@@ -977,6 +977,8 @@ describe('User Schemas', () => {
 
 ### Logging (Pino)
 
+#### Basic Usage
+
 ```typescript
 import { logger, createModuleLogger } from '@/shared/logging/logger';
 
@@ -986,6 +988,52 @@ logger.info({ userId: 1 }, 'User created');
 // Module-specific logger
 const userLogger = createModuleLogger('user');
 userLogger.debug({ email }, 'Checking if user exists');
+```
+
+#### Request/Response Logging
+
+All HTTP requests are automatically logged with:
+
+- **Request ID** - Unique identifier for request tracing (auto-generated or from `X-Request-ID` header)
+- **HTTP method & path** - Request details
+- **Status code** - Response status
+- **Duration** - Request processing time in milliseconds
+- **Dynamic log levels** - Based on response status (info/warn/error)
+
+**Log Output Example:**
+
+```bash
+# Successful request (200 OK)
+[INFO] Request received { method: 'GET', path: '/api/v1/users', requestId: 'abc123' }
+[INFO] Request completed { method: 'GET', path: '/api/v1/users', requestId: 'abc123', status: 200, durationMs: 45.23 }
+
+# Client error (404 Not Found)
+[INFO] Request received { method: 'GET', path: '/api/v1/users/99999', requestId: 'def456' }
+[WARN] Exception: User not found { requestId: 'def456', code: 'NOT_FOUND', statusCode: 404, messageKey: 'errors.user.not_found' }
+[WARN] Request completed { method: 'GET', path: '/api/v1/users/99999', requestId: 'def456', status: 404, durationMs: 12.87 }
+
+# Server error (500 Internal)
+[INFO] Request received { method: 'POST', path: '/api/v1/users', requestId: 'ghi789' }
+[ERROR] Unhandled exception { requestId: 'ghi789', errorName: 'TypeError', errorMessage: 'Cannot read property...', stack: '...' }
+[ERROR] Request completed { method: 'POST', path: '/api/v1/users', requestId: 'ghi789', status: 500, durationMs: 8.45 }
+```
+
+**Log Levels:**
+
+- `INFO` - 2xx/3xx responses, incoming requests
+- `WARN` - 4xx client errors
+- `ERROR` - 5xx server errors
+
+**Development vs Production:**
+
+- **Development**: Colorized pretty-print logs w/ stack traces
+- **Production**: JSON structured logs, stack traces excluded
+
+**Configuration:**
+
+```env
+LOG_LEVEL=debug    # trace|debug|info|warn|error|fatal
+NODE_ENV=development
 ```
 
 ### OpenTelemetry Tracing

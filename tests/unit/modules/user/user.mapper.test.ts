@@ -28,6 +28,7 @@ describe('userMapper', () => {
     passwordHash: 'hashed_password_123',
     createdAt: new Date('2025-01-01T10:00:00.000Z'),
     updatedAt: new Date('2025-01-02T15:30:00.000Z'),
+    deletedAt: null,
   };
 
   describe('toResponse', () => {
