@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { createUserModule, DrizzleUserRepository } from './modules/user';
 import { exceptionHandler } from './shared/exceptions';
-import { db, passwordHasher } from './shared/infrastructure';
+import { checkDatabaseHealth, db, passwordHasher } from './shared/infrastructure';
 import { logger } from './shared/logging';
 
 export function createApp() {
@@ -33,19 +33,44 @@ export function createApp() {
         },
       }),
     )
-    .get('/favicon.ico', () => {
-      return Bun.file('src/public/favicon.ico');
+    .get('/favicon.ico', ({ redirect }) => {
+      return redirect(
+        'https://icons.iconarchive.com/icons/tribalmarkings/colorflow/32/umbrella-corp-icon.png',
+      );
     })
     .get(
       '/health',
-      () => ({
-        status: 'ok',
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-      }),
+      async () => {
+        const dbHealthy = await checkDatabaseHealth();
+        return {
+          status: dbHealthy ? 'ok' : 'degraded',
+          uptime: process.uptime(),
+          timestamp: new Date().toISOString(),
+          checks: {
+            database: dbHealthy ? 'healthy' : 'unhealthy',
+          },
+        };
+      },
       {
         detail: {
           summary: 'Health check',
+          tags: ['Health'],
+        },
+      },
+    )
+    .get(
+      '/ready',
+      async ({ set }) => {
+        const dbHealthy = await checkDatabaseHealth();
+        if (!dbHealthy) {
+          set.status = 503;
+          return { ready: false, reason: 'Database unavailable' };
+        }
+        return { ready: true };
+      },
+      {
+        detail: {
+          summary: 'Readiness check',
           tags: ['Health'],
         },
       },

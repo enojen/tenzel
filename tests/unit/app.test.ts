@@ -10,15 +10,17 @@ describe('createApp', () => {
     expect(typeof app.handle).toBe('function');
   });
 
-  it('GET /health should return status ok', async () => {
+  it('GET /health should return health status', async () => {
     const app = createApp();
     const response = await app.handle(new Request('http://localhost/health'));
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe('ok');
+    expect(['ok', 'degraded']).toContain(body.status);
     expect(body.uptime).toBeDefined();
     expect(body.timestamp).toBeDefined();
+    expect(body.checks).toBeDefined();
+    expect(body.checks.database).toBeDefined();
   });
 
   it('GET /api/v1 should return message', async () => {

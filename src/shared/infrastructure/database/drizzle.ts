@@ -1,10 +1,7 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { getDb } from './connection';
 
-import { config } from '../../../config';
-
-const client = postgres(config.database.url, {
-  max: config.database.pool.max,
+export const db = new Proxy({} as ReturnType<typeof getDb>, {
+  get(_, prop) {
+    return Reflect.get(getDb(), prop);
+  },
 });
-
-export const db = drizzle(client);

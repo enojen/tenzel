@@ -25,7 +25,10 @@ function buildConfig() {
     database: {
       url: env.DATABASE_URL,
       pool: {
-        max: 10,
+        max: env.DATABASE_POOL_MAX,
+        idleTimeout: env.DATABASE_IDLE_TIMEOUT,
+        connectTimeout: env.DATABASE_CONNECT_TIMEOUT,
+        maxLifetime: 60 * 30,
       },
     },
 
