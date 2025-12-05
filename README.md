@@ -543,8 +543,6 @@ git commit -m "TASK-ID: brief description
 
 - bullet point of changes
 - another change
-
-Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>"
 ```
 
 ### Full Example: Product Module (10 Endpoints)
