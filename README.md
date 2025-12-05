@@ -1018,7 +1018,7 @@ bun run index.ts
 
 #### 4. View Traces
 
-Open Jaeger UI at **http://localhost:16686** and select the `muhasebat` service.
+Open Jaeger UI at **http://localhost:16686** and select the `tenzel` service.
 
 #### What's Automatically Traced
 

@@ -1,17 +1,17 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: muhasebat-local-db
+    container_name: tenzel-local-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: muhasebat
+      POSTGRES_DB: tenzel
     ports:
       - "5432:5432"
     volumes:
       - postgres_local_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d muhasebat"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tenzel"]
       interval: 5s
       timeout: 3s
       retries: 5

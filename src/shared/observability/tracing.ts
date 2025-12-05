@@ -22,7 +22,7 @@ export function initTracing(): void {
 
   sdk = new NodeSDK({
     resource: resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: 'muhasebat',
+      [ATTR_SERVICE_NAME]: 'tenzel',
       [ATTR_SERVICE_VERSION]: '1.0.0',
     }),
     traceExporter,

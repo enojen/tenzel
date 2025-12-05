@@ -3,13 +3,13 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: muhasebat-app
+    container_name: tenzel-app
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/muhasebat
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tenzel
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-key-at-least-32-characters}
       LOG_LEVEL: info
       OTEL_ENABLED: ${OTEL_ENABLED:-true}
@@ -22,17 +22,17 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: muhasebat-db
+    container_name: tenzel-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: muhasebat
+      POSTGRES_DB: tenzel
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d muhasebat"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tenzel"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +41,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.54
-    container_name: muhasebat-jaeger
+    container_name: tenzel-jaeger
     ports:
       - "16686:16686"
       - "4318:4318"
