@@ -188,15 +188,15 @@ describe('UserRepository (InMemory)', () => {
       const users = await repository.findAll({ offset: 2 });
 
       expect(users).toHaveLength(3);
-      expect(users[0].name).toBe('User 3');
+      expect(users[0]?.name).toBe('User 3');
     });
 
     it('should respect both limit and offset options', async () => {
       const users = await repository.findAll({ limit: 2, offset: 1 });
 
       expect(users).toHaveLength(2);
-      expect(users[0].name).toBe('User 2');
-      expect(users[1].name).toBe('User 3');
+      expect(users[0]?.name).toBe('User 2');
+      expect(users[1]?.name).toBe('User 3');
     });
 
     it('should return empty array when offset exceeds total count', async () => {

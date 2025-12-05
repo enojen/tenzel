@@ -150,9 +150,9 @@ describe('userMapper', () => {
       const responses = userMapper.toResponseList(users);
 
       expect(responses).toHaveLength(3);
-      expect(responses[0].id).toBe(1);
-      expect(responses[1].id).toBe(2);
-      expect(responses[2].id).toBe(3);
+      expect(responses[0]?.id).toBe(1);
+      expect(responses[1]?.id).toBe(2);
+      expect(responses[2]?.id).toBe(3);
     });
 
     it('should return empty array for empty input', () => {

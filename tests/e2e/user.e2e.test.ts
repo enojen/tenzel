@@ -4,6 +4,9 @@ import { Elysia } from 'elysia';
 import { InMemoryUserRepository } from '../mocks/in-memory-user.repository';
 import { mockPasswordHasher } from '../mocks/mock-password-hasher';
 
+import type { UserResponse } from '@/modules/user/api/user.schemas';
+import type { ErrorResponse } from '@/shared/openapi/error.schema';
+
 import { createUserModule } from '@/modules/user';
 import { BaseException } from '@/shared/exceptions/base.exception';
 
@@ -57,7 +60,7 @@ describe('User API E2E', () => {
 
       expect(response.status).toBe(201);
 
-      const body = await response.json();
+      const body = (await response.json()) as UserResponse;
       expect(body.id).toBe(1);
       expect(body.email).toBe('test@example.com');
       expect(body.name).toBe('Test User');
@@ -89,7 +92,7 @@ describe('User API E2E', () => {
 
       expect(response.status).toBe(409);
 
-      const body = await response.json();
+      const body = (await response.json()) as ErrorResponse;
       expect(body.error.code).toBe('CONFLICT');
     });
 
@@ -149,7 +152,7 @@ describe('User API E2E', () => {
 
       expect(response.status).toBe(201);
 
-      const body = await response.json();
+      const body = (await response.json()) as UserResponse;
       expect(body.role).toBe('admin');
     });
   });
@@ -163,7 +166,7 @@ describe('User API E2E', () => {
           body: JSON.stringify(validUserPayload),
         }),
       );
-      const created = await createResponse.json();
+      const created = (await createResponse.json()) as UserResponse;
 
       const response = await app.handle(
         new Request(`http://localhost/api/v1/users/${created.id}`, {
@@ -173,7 +176,7 @@ describe('User API E2E', () => {
 
       expect(response.status).toBe(200);
 
-      const body = await response.json();
+      const body = (await response.json()) as UserResponse;
       expect(body.id).toBe(created.id);
       expect(body.email).toBe('test@example.com');
       expect(body.name).toBe('Test User');
@@ -188,7 +191,7 @@ describe('User API E2E', () => {
 
       expect(response.status).toBe(404);
 
-      const body = await response.json();
+      const body = (await response.json()) as ErrorResponse;
       expect(body.error.code).toBe('NOT_FOUND');
     });
 
@@ -200,7 +203,7 @@ describe('User API E2E', () => {
           body: JSON.stringify(validUserPayload),
         }),
       );
-      const created = await createResponse.json();
+      const created = (await createResponse.json()) as UserResponse;
 
       const response = await app.handle(
         new Request(`http://localhost/api/v1/users/${created.id}`, {
@@ -208,7 +211,7 @@ describe('User API E2E', () => {
         }),
       );
 
-      const body = await response.json();
+      const body = (await response.json()) as UserResponse;
       expect(body).not.toHaveProperty('passwordHash');
       expect(body).not.toHaveProperty('password');
     });
@@ -224,7 +227,7 @@ describe('User API E2E', () => {
         }),
       );
 
-      const body = await createResponse.json();
+      const body = (await createResponse.json()) as UserResponse;
 
       expect(body.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
       expect(body.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
@@ -239,7 +242,7 @@ describe('User API E2E', () => {
         }),
       );
 
-      const body = await createResponse.json();
+      const body = (await createResponse.json()) as UserResponse;
 
       expect(Number.isInteger(body.id)).toBe(true);
     });

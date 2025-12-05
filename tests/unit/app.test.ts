@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 
 import { createApp } from '../../src/app';
 
+import type { HealthCheckResponse, ApiInfoResponse, OpenAPIResponse } from '../../src/app.schemas';
+
 describe('createApp', () => {
   it('should return an Elysia instance', () => {
     const app = createApp();
@@ -13,7 +15,7 @@ describe('createApp', () => {
   it('GET /health should return health status', async () => {
     const app = createApp();
     const response = await app.handle(new Request('http://localhost/health'));
-    const body = await response.json();
+    const body = (await response.json()) as HealthCheckResponse;
 
     expect(response.status).toBe(200);
     expect(['ok', 'degraded']).toContain(body.status);
@@ -26,7 +28,7 @@ describe('createApp', () => {
   it('GET /api/v1 should return message', async () => {
     const app = createApp();
     const response = await app.handle(new Request('http://localhost/api/v1'));
-    const body = await response.json();
+    const body = (await response.json()) as ApiInfoResponse;
 
     expect(response.status).toBe(200);
     expect(body.message).toBe('API v1 is up');
@@ -35,7 +37,7 @@ describe('createApp', () => {
   it('GET /openapi/json should return OpenAPI spec', async () => {
     const app = createApp();
     const response = await app.handle(new Request('http://localhost/openapi/json'));
-    const body = await response.json();
+    const body = (await response.json()) as OpenAPIResponse;
 
     expect(response.status).toBe(200);
     expect(body.openapi).toBeDefined();

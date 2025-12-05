@@ -62,11 +62,12 @@ export class User extends AggregateRoot<UserProps> {
     this.props.updatedAt = new Date();
   }
 
-  static create(props: UserProps): User {
+  static create(props: Omit<UserProps, 'id'> & { id?: number | string }): User {
     return new User({
       ...props,
+      id: props.id ?? Math.random().toString(36).substr(2, 9),
       createdAt: props.createdAt ?? new Date(),
       updatedAt: props.updatedAt ?? new Date(),
-    });
+    } as UserProps);
   }
 }
