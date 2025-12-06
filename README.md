@@ -480,6 +480,27 @@ Guidelines for breaking down new module development into manageable tasks.
 
 Examples: `NOVA-001`, `BOLT-042`, `APEX-103`
 
+### Task File Naming
+
+`.task/{TASK-ID}-{short-description}.md`
+
+Example: `.task/MHSB-020-user-domain.md`
+
+### Task Type Tags
+
+Use tags to categorize tasks:
+
+| Tag         | Description                                 |
+| ----------- | ------------------------------------------- |
+| `[INFRA]`   | Shared infrastructure, middleware, services |
+| `[DOMAIN]`  | Entity, value object, repository interface  |
+| `[DB]`      | Table definitions, migrations               |
+| `[REPO]`    | Repository implementation                   |
+| `[API]`     | Controller, endpoints, schemas              |
+| `[TEST]`    | Unit, integration, e2e tests                |
+| `[JOB]`     | Cron jobs, background tasks                 |
+| `[WEBHOOK]` | External webhook handlers                   |
+
 ### Optimal Task Size
 
 | Too Small (Avoid)  | Good Size             | Too Large (Avoid)         |
