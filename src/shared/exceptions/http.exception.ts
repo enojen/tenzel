@@ -99,3 +99,18 @@ export class InternalServerException extends HttpException {
     });
   }
 }
+
+export class TooManyRequestsException extends HttpException {
+  constructor(
+    messageKey: TranslationKey = 'errors.rate_limit_exceeded',
+    messageParams?: Record<string, string | number>,
+    details?: Record<string, unknown>,
+  ) {
+    super(429, {
+      code: 'RATE_LIMIT_EXCEEDED',
+      messageKey,
+      messageParams,
+      details,
+    });
+  }
+}

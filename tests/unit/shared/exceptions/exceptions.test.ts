@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   InternalServerException,
   NotFoundException,
+  TooManyRequestsException,
   UnauthorizedException,
 } from '@/shared/exceptions';
 
@@ -103,6 +104,22 @@ describe('HTTP Exceptions', () => {
       expect(error.statusCode).toBe(500);
       expect(error.code).toBe('INTERNAL_ERROR');
       expect(error.messageKey).toBe('errors.internal');
+    });
+  });
+
+  describe('TooManyRequestsException', () => {
+    it('should have status 429 and correct code', () => {
+      const error = new TooManyRequestsException();
+
+      expect(error.statusCode).toBe(429);
+      expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(error.messageKey).toBe('errors.rate_limit_exceeded');
+    });
+
+    it('should accept retryAfter in details', () => {
+      const error = new TooManyRequestsException(undefined, undefined, { retryAfter: 60 });
+
+      expect(error.details).toEqual({ retryAfter: 60 });
     });
   });
 

@@ -5,6 +5,7 @@
   "errors.forbidden": "Erisim engellendi",
   "errors.not_found": "Kaynak bulunamadi",
   "errors.conflict": "Kaynak zaten mevcut",
+  "errors.rate_limit_exceeded": "Cok fazla istek, lutfen daha sonra tekrar deneyin",
   "errors.validation": "Dogrulama hatasi",
   "errors.user.not_found": "Kullanici bulunamadi",
   "errors.user.already_exists": "{email} adresine sahip kullanici zaten mevcut"
