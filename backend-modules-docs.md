@@ -1,56 +1,292 @@
-﻿# Backend Modules Documentation
+﻿# Muhasebat Backend Specification v3.0
+
+> **Authoritative Source**: This document is the single source of truth for all backend API specifications.
 
 ---
 
-## 📘 USER MODULE
+## Table of Contents
 
-### 1. Overview
-
-The **User Module** manages **anonymous users** identified by a **Device ID + JWT token**.
-
-Responsibilities:
-
-- Device-based anonymous user creation
-- User state management (`free` / `premium`)
-- Tracked assets list (currencies & commodities)
-- User deletion (with premium/free rules)
-- Token lifecycle logic (JWT)
-
-Not responsible for:
-
-- Subscription validation (→ Subscription Module)
-- Paywall / pricing information (→ Config Module)
-- App startup orchestration (→ App Module)
+1. [Overview](#1-overview)
+2. [Global Standards](#2-global-standards)
+3. [App Module](#3-app-module)
+4. [User Module](#4-user-module)
+5. [Subscription Module](#5-subscription-module)
+6. [Config Module](#6-config-module)
+7. [Rate Module](#7-rate-module)
+8. [Webhooks](#8-webhooks)
+9. [API Endpoint Summary](#9-api-endpoint-summary)
+10. [Shared Infrastructure Requirements](#10-shared-infrastructure-requirements)
 
 ---
 
-### 2. Authentication Flow
+## 1. Overview
 
-#### Token Lifecycle
+### 1.1 Project Description
 
-- Token is created via `POST /api/app/init`
-- Token expiry: **None** (no expiration)
-- Token becomes invalid when:
-  - User is deleted (free user deletes account)
-  - User is soft-deleted
+Muhasebat is a financial mobile application providing currency exchange rates and precious metals pricing with free and premium tiers. The app features real-time data scraping from external sources and requires complex user state management across different app installations.
 
-#### Auth Responses
+### 1.2 Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MUHASEBAT BACKEND                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌───────────┐  ┌──────────────┐  ┌────────────┐  ┌───────────┐            │
+│  │    App    │  │     User     │  │Subscription│  │   Config  │   Modules  │
+│  │  Module   │  │    Module    │  │   Module   │  │   Module  │            │
+│  └─────┬─────┘  └──────┬───────┘  └─────┬──────┘  └─────┬─────┘            │
+│        │               │                │               │                   │
+│        └───────────────┼────────────────┼───────────────┘                   │
+│                        │                │                                    │
+│  ┌───────────┐         │                │                                    │
+│  │   Rate    │─────────┘                │                                    │
+│  │  Module   │──────────────────────────┘                                    │
+│  └───────────┘                                                               │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                        Shared Kernel                           │         │
+│  │  (exceptions, i18n, logging, auth middleware, crypto)          │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                       Infrastructure                           │         │
+│  │  (PostgreSQL, JWT, External APIs, Scraper Service)             │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.3 Key Technical Decisions
+
+| Decision        | Implementation                             |
+| --------------- | ------------------------------------------ |
+| Authentication  | Device ID + JWT (no expiration)            |
+| User Model      | Anonymous users, no registration           |
+| Premium Access  | Store-based subscriptions (Apple/Google)   |
+| Data Source     | canlidoviz.com scraper (1-minute interval) |
+| Token Lifecycle | Invalidated only on user deletion          |
+
+---
+
+## 2. Global Standards
+
+### 2.1 Common Types
+
+```typescript
+// Account tier determines feature access
+type AccountTier = 'free' | 'premium';
+
+// Asset categories
+type AssetType = 'currency' | 'commodity';
+
+// Price change indicator
+type Trend = 'up' | 'down' | 'stable';
+
+// Supported platforms for subscriptions
+type SubscriptionPlatform = 'ios' | 'android';
+
+// Subscription lifecycle states
+type SubscriptionStatus = 'active' | 'expired' | 'canceled' | 'grace_period';
+
+// Scraper health indicator
+type ScraperStatus = 'healthy' | 'degraded' | 'unhealthy';
+```
+
+### 2.2 Error Response Schema
+
+```typescript
+interface ErrorResponse {
+  error: {
+    code: string;
+    message: string; // Localized message
+    details?: unknown;
+  };
+}
+```
+
+### 2.3 Standard Error Codes
+
+| Code                     | HTTP Status | Description                          |
+| ------------------------ | ----------- | ------------------------------------ |
+| `UNAUTHORIZED`           | 401         | No token provided                    |
+| `INVALID_TOKEN`          | 401         | Token is invalid or user deleted     |
+| `PREMIUM_REQUIRED`       | 403         | Free user accessing premium endpoint |
+| `USER_NOT_FOUND`         | 404         | User does not exist                  |
+| `ASSET_NOT_FOUND`        | 404         | Currency/commodity not found         |
+| `BANK_NOT_FOUND`         | 404         | Bank not found                       |
+| `INVALID_RECEIPT`        | 400         | Store receipt validation failed      |
+| `SUBSCRIPTION_NOT_FOUND` | 404         | No subscription for restore          |
+| `VALIDATION_ERROR`       | 400         | Request validation failed            |
+| `RATE_LIMIT_EXCEEDED`    | 429         | Too many requests                    |
+| `INTERNAL_ERROR`         | 500         | Server error                         |
+
+### 2.4 Rate Limiting
+
+| Endpoint Group             | Limit        | Window              |
+| -------------------------- | ------------ | ------------------- |
+| `POST /api/app/init`       | 10 requests  | per minute per IP   |
+| `/api/rates/*`             | 120 requests | per minute per user |
+| `/api/converter/calculate` | 60 requests  | per minute per user |
+| `/api/users/me/tracked`    | 30 requests  | per minute per user |
+| `/api/subscriptions/*`     | 10 requests  | per minute per user |
+
+**Rate Limit Response:**
+
+```typescript
+// HTTP 429 Too Many Requests
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please try again later.",
+    "details": {
+      "retryAfter": 60  // seconds
+    }
+  }
+}
+```
+
+### 2.5 Authentication Responses
 
 | Scenario                      | HTTP Status | Error Code         |
 | ----------------------------- | ----------- | ------------------ |
 | No token provided             | 401         | `UNAUTHORIZED`     |
-| Invalid/expired token         | 401         | `INVALID_TOKEN`    |
+| Invalid/malformed token       | 401         | `INVALID_TOKEN`    |
+| Token for deleted user        | 401         | `INVALID_TOKEN`    |
 | Free user on premium endpoint | 403         | `PREMIUM_REQUIRED` |
 
 ---
 
-### 3. Data Models
+## 3. App Module
 
-#### 3.1. User
+### 3.1 Overview
 
-```ts
-type AccountTier = 'free' | 'premium';
+The App Module bootstraps the entire application session. It creates or retrieves users based on device ID and returns all necessary data for app initialization.
 
+**Responsibilities:**
+
+- Device-based user creation/retrieval
+- JWT token generation
+- Initial data aggregation (user, subscription, assets, config)
+
+### 3.2 Endpoint: POST /api/app/init
+
+Initializes the application session.
+
+**Auth:** None (Public endpoint)
+
+**Request:**
+
+```typescript
+interface AppInitRequest {
+  deviceId: string; // Expo device ID or UUID fallback
+  platform: 'ios' | 'android';
+  appVersion: string;
+  buildNumber?: string;
+  locale?: string; // e.g., "tr-TR"
+  timezone?: string; // e.g., "Europe/Istanbul"
+  pushToken?: string;
+}
+```
+
+**Response:**
+
+```typescript
+interface AppInitResponse {
+  serverTime: string; // ISO 8601
+  token: string; // JWT, no expiration
+  isNewUser: boolean; // true = new user created
+
+  user: {
+    id: string;
+    deviceId: string;
+    accountTier: AccountTier;
+    subscriptionExpiresAt: string | null;
+    createdAt: string;
+  };
+
+  subscription: {
+    status: SubscriptionStatus;
+    expiresAt: string | null;
+  } | null;
+
+  // Home screen assets (tracked OR defaults)
+  homeAssets: {
+    source: 'tracked' | 'defaults';
+    items: Array<{
+      code: string;
+      type: AssetType;
+      name: string;
+      logoUrl: string;
+    }>;
+  };
+
+  config: {
+    subscription: {
+      price: number;
+      currency: string;
+      period: 'monthly';
+      features: string[];
+    };
+  };
+
+  featureFlags: Record<string, boolean>;
+}
+```
+
+**Business Logic:**
+
+```
+1. Search for user by deviceId
+   ├─ Found → Return existing user + new token
+   └─ Not Found → Create new user (accountTier: 'free') + token
+
+2. Token: JWT format, no expiration
+
+3. homeAssets logic:
+   IF user.trackedAssets.length > 0:
+     source = 'tracked'
+     items = user.trackedAssets
+   ELSE:
+     source = 'defaults'
+     items = [GRAM_GOLD, USD, EUR]
+```
+
+### 3.3 Device ID Strategy
+
+```
+Frontend Device ID Generation:
+1. Try expo-application getIosIdForVendorAsync() / getAndroidId()
+2. If fails → Generate UUID v4
+3. Store in AsyncStorage
+4. Send same ID on every app/init
+```
+
+---
+
+## 4. User Module
+
+### 4.1 Overview
+
+Manages anonymous users identified by Device ID + JWT token.
+
+**Responsibilities:**
+
+- User state management (free/premium)
+- Tracked assets list management
+- User deletion with tier-specific rules
+- Token lifecycle
+
+**Not Responsible For:**
+
+- Subscription validation (→ Subscription Module)
+- Paywall configuration (→ Config Module)
+
+### 4.2 Data Models
+
+**User:**
+
+```typescript
 interface User {
   id: string;
   deviceId: string;
@@ -58,15 +294,13 @@ interface User {
   subscriptionExpiresAt: string | null;
   createdAt: string;
   updatedAt: string;
-  deletedAt: string | null;
+  deletedAt: string | null; // Soft delete for premium users
 }
 ```
 
-#### 3.2. Tracked Asset
+**Tracked Asset:**
 
-```ts
-type AssetType = 'currency' | 'commodity';
-
+```typescript
 interface TrackedAsset {
   assetType: AssetType;
   assetCode: string;
@@ -74,25 +308,24 @@ interface TrackedAsset {
 }
 ```
 
----
+### 4.3 User Deletion Rules
 
-### 4. Common Error Schema
+| User Type   | Delete Action | Token          | Data                   | Restore                 |
+| ----------- | ------------- | -------------- | ---------------------- | ----------------------- |
+| **Free**    | Hard delete   | ❌ Invalidated | 🗑️ Permanently deleted | ❌ Not possible         |
+| **Premium** | Soft delete   | ❌ Invalidated | 💾 Preserved 90 days   | ✅ Via restore endpoint |
 
-```ts
-interface ErrorResponse {
-  error: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-}
-```
+**Premium User Soft Delete Flow:**
 
----
+1. `deletedAt` timestamp is set
+2. Token becomes invalid immediately
+3. Subscription record preserved in database
+4. User can restore on same/different device using `billingKey`
+5. After 90 days without restore → hard delete (cron job)
 
-### 5. Endpoints
+### 4.4 Endpoints
 
-#### 5.1. GET /api/users/me
+#### GET /api/users/me
 
 Fetch authenticated user information.
 
@@ -100,7 +333,7 @@ Fetch authenticated user information.
 
 **Response:**
 
-```ts
+```typescript
 interface CurrentUserResponse {
   user: {
     id: string;
@@ -115,20 +348,15 @@ interface CurrentUserResponse {
 
 ---
 
-#### 5.2. DELETE /api/users/me
+#### DELETE /api/users/me
 
 Delete the current user.
 
 **Auth:** Bearer Token (Required)
 
-**Business Rules:**
-
-- Free users: Hard delete, token invalidated
-- Premium users: Soft delete, subscription preserved for restore
-
 **Response:**
 
-```ts
+```typescript
 interface DeleteUserResponse {
   success: true;
 }
@@ -136,13 +364,15 @@ interface DeleteUserResponse {
 
 ---
 
-#### 5.3. GET /api/users/me/tracked
+#### GET /api/users/me/tracked
 
 Get user's tracked assets list.
 
 **Auth:** Bearer Token (Required)
 
-```ts
+**Response:**
+
+```typescript
 interface TrackedAssetsResponse {
   assets: TrackedAsset[];
 }
@@ -150,67 +380,91 @@ interface TrackedAssetsResponse {
 
 ---
 
-#### 5.4. POST /api/users/me/tracked
+#### POST /api/users/me/tracked
 
 Add an asset to tracked list.
 
 **Auth:** Bearer Token (Required)
 
-```ts
+**Request:**
+
+```typescript
 interface AddTrackedAssetRequest {
   assetType: AssetType;
   assetCode: string;
 }
 ```
 
-```ts
+**Response:**
+
+```typescript
 interface AddTrackedAssetResponse {
   success: true;
   assets: TrackedAsset[];
 }
 ```
 
+**Business Rules:**
+
+- Same asset cannot be added twice (idempotent - returns success)
+- New assets added to end of list
+- No maximum limit
+
+**Errors:**
+
+- `ASSET_NOT_FOUND`: Invalid assetCode/assetType combination
+
 ---
 
-#### 5.5. DELETE /api/users/me/tracked/:assetCode
+#### DELETE /api/users/me/tracked/:assetCode
 
 Remove an asset from tracked list.
 
 **Auth:** Bearer Token (Required)
 
-```ts
+**Query Params:**
+
+| Param  | Type                    | Required | Description |
+| ------ | ----------------------- | -------- | ----------- |
+| `type` | `currency \| commodity` | Yes      | Asset type  |
+
+**Response:**
+
+```typescript
 interface RemoveTrackedAssetResponse {
   success: true;
   assets: TrackedAsset[];
 }
 ```
 
+**Business Rules:**
+
+- Idempotent: removing non-tracked asset returns success
+- `type` query param required to distinguish assets with same code
+
 ---
 
-## 📘 SUBSCRIPTION MODULE
+## 5. Subscription Module
 
-### 1. Overview
+### 5.1 Overview
 
-Handles subscription logic:
+Handles all subscription logic including receipt validation, activation, expiration, and restore flows.
+
+**Responsibilities:**
 
 - Receipt validation (Apple/Google)
-- Subscription activation / expiration
+- Subscription activation/expiration
 - Restore purchase flow
-- Subscription lifecycle management
+- Subscription lifecycle via webhooks
 
----
+### 5.2 Data Model
 
-### 2. Data Model
-
-```ts
-type SubscriptionPlatform = 'ios' | 'android';
-type SubscriptionStatus = 'active' | 'expired' | 'canceled';
-
+```typescript
 interface Subscription {
   id: string;
   userId: string;
   platform: SubscriptionPlatform;
-  billingKey: string;
+  billingKey: string; // Apple: originalTransactionId, Google: purchaseToken
   status: SubscriptionStatus;
   expiresAt: string;
   createdAt: string;
@@ -218,28 +472,88 @@ interface Subscription {
 }
 ```
 
----
+### 5.3 Subscription Status Lifecycle
 
-### 3. Subscription Expiry Management
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    SUBSCRIPTION STATUS FLOW                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   ┌──────────┐    payment     ┌──────────┐                              │
+│   │  (none)  │ ──────────────►│  active  │◄─────────────────┐           │
+│   └──────────┘    success     └────┬─────┘              │           │
+│                                    │                     │           │
+│                    ┌───────────────┼───────────────┐    │           │
+│                    │               │               │    │           │
+│                    ▼               ▼               │    │           │
+│              user cancels    payment fails        │    │           │
+│                    │               │               │    │           │
+│                    ▼               ▼               │    │           │
+│              ┌──────────┐   ┌─────────────┐       │    │           │
+│              │ canceled │   │ grace_period│───────┘    │           │
+│              └────┬─────┘   └──────┬──────┘  recovered │           │
+│                   │                │                    │           │
+│                   │   expiresAt    │   grace ended     │           │
+│                   │   reached      │   (no payment)    │           │
+│                   ▼                ▼                    │           │
+│              ┌─────────────────────────────┐           │           │
+│              │          expired            │───────────┘           │
+│              │   (accountTier: free)       │  user resubscribes    │
+│              └─────────────────────────────┘                        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-#### Periyodik Job (Önerilen)
+**Status Descriptions:**
 
-- **Frequency:** Her 1 saat
-- Job, `expiresAt < now()` olan subscriptionları bulur
-- İlgili user'ların `accountTier` değerini `free` yapar
-- Request-time check yapılmaz (performans için)
+| Status         | accountTier | Description                             |
+| -------------- | ----------- | --------------------------------------- |
+| `active`       | premium     | Payment confirmed, full access          |
+| `canceled`     | premium     | User canceled, access until `expiresAt` |
+| `grace_period` | premium     | Payment failed, retrying (~16 days)     |
+| `expired`      | free        | Subscription ended, downgraded          |
 
----
+### 5.4 Subscription Expiry Job
 
-### 4. Endpoints
+**Frequency:** Every 1 hour
 
-#### 4.1. POST /api/subscriptions/verify
+**Logic:**
+
+```typescript
+// Find expired subscriptions
+const expired = await db.subscription.findMany({
+  where: {
+    expiresAt: { lt: new Date() },
+    status: { in: ['active', 'canceled', 'grace_period'] },
+  },
+});
+
+// Update each
+for (const sub of expired) {
+  await db.$transaction([
+    db.subscription.update({
+      where: { id: sub.id },
+      data: { status: 'expired' },
+    }),
+    db.user.update({
+      where: { id: sub.userId },
+      data: { accountTier: 'free', subscriptionExpiresAt: null },
+    }),
+  ]);
+}
+```
+
+### 5.5 Endpoints
+
+#### POST /api/subscriptions/verify
 
 Validate receipt and activate subscription.
 
 **Auth:** Bearer Token (Required)
 
-```ts
+**Request:**
+
+```typescript
 interface VerifySubscriptionRequest {
   platform: SubscriptionPlatform;
   receipt: string;
@@ -248,7 +562,9 @@ interface VerifySubscriptionRequest {
 }
 ```
 
-```ts
+**Response:**
+
+```typescript
 interface VerifySubscriptionResponse {
   success: true;
   user: {
@@ -266,9 +582,13 @@ interface VerifySubscriptionResponse {
 }
 ```
 
+**Errors:**
+
+- `INVALID_RECEIPT`: Store validation failed
+
 ---
 
-#### 4.2. POST /api/subscriptions/restore
+#### POST /api/subscriptions/restore
 
 Restore subscription after reinstall or device change.
 
@@ -276,11 +596,14 @@ Restore subscription after reinstall or device change.
 
 **Flow:**
 
-1. `billingKey` ile mevcut subscription aranır
-2. Store'dan (Apple/Google) subscription durumu doğrulanır
-3. Aktifse user'a bağlanır, `accountTier: premium` yapılır
+1. Find subscription by `billingKey`
+2. Validate with Store API (Apple/Google)
+3. If active: link to current user, set `accountTier: 'premium'`
+4. If soft-deleted user exists with same billingKey: restore that user's data
 
-```ts
+**Request:**
+
+```typescript
 interface RestoreSubscriptionRequest {
   platform: SubscriptionPlatform;
   billingKey: string;
@@ -288,10 +611,12 @@ interface RestoreSubscriptionRequest {
 }
 ```
 
-```ts
+**Response (Success):**
+
+```typescript
 interface RestoreSubscriptionResponse {
   success: true;
-  restored: boolean;
+  restored: true;
   user: {
     id: string;
     accountTier: 'premium';
@@ -307,802 +632,44 @@ interface RestoreSubscriptionResponse {
 }
 ```
 
----
+**Response (No Active Subscription):**
 
-### 5. Server-to-Server Notifications (Webhooks)
-
-Apple ve Google, subscription lifecycle event'lerinde backend'i doğrudan bilgilendirir.
-
-#### 5.1. Notification Types
-
-```ts
-// Apple App Store Server Notification Types
-type AppleNotificationType =
-  | 'DID_RENEW' // Otomatik yenileme başarılı
-  | 'DID_FAIL_TO_RENEW' // Ödeme başarısız
-  | 'CANCEL' // Kullanıcı iptal etti
-  | 'EXPIRED' // Süresi doldu
-  | 'REFUND' // İade yapıldı
-  | 'GRACE_PERIOD_EXPIRED'; // Grace period bitti
-
-// Google Real-Time Developer Notifications Types
-type GoogleNotificationType =
-  | 'SUBSCRIPTION_RENEWED' // Yenileme başarılı
-  | 'SUBSCRIPTION_CANCELED' // İptal edildi
-  | 'SUBSCRIPTION_EXPIRED' // Süresi doldu
-  | 'SUBSCRIPTION_IN_GRACE_PERIOD' // Ödeme bekliyor
-  | 'SUBSCRIPTION_RECOVERED' // Ödeme kurtarıldı
-  | 'SUBSCRIPTION_PAUSED'; // Duraklatıldı
-```
-
-#### 5.2. POST /api/webhooks/apple
-
-Apple App Store Server Notifications endpoint.
-
-**Auth:** Apple JWS Signature Validation
-
-**Request (Apple sends):**
-
-```ts
-interface AppleWebhookPayload {
-  signedPayload: string; // JWS (JSON Web Signature)
-}
-
-// Decoded payload içeriği
-interface AppleNotificationPayload {
-  notificationType: AppleNotificationType;
-  subtype?: string;
-  data: {
-    bundleId: string;
-    environment: 'Sandbox' | 'Production';
-    signedTransactionInfo: string; // JWS
-    signedRenewalInfo: string; // JWS
-  };
-}
-
-// Decoded transaction info
-interface AppleTransactionInfo {
-  originalTransactionId: string; // billingKey olarak kullanılır
-  productId: string;
-  expiresDate: number; // Unix timestamp (ms)
-}
-```
-
-**Response:**
-
-```ts
-// HTTP 200 OK (boş body veya success)
-interface AppleWebhookResponse {
+```typescript
+interface RestoreSubscriptionResponse {
   success: true;
+  restored: false;
+  message: 'No active subscription found for this billing key';
 }
 ```
 
-**Validation:**
+**Errors:**
 
-1. JWS signature'ı Apple'ın public key'i ile doğrula
-2. `bundleId` kontrol et
-3. `environment` kontrol et (Production/Sandbox)
+- `SUBSCRIPTION_NOT_FOUND`: No subscription exists for billingKey
+- `INVALID_RECEIPT`: Store validation failed
 
 ---
 
-#### 5.3. POST /api/webhooks/google
+## 6. Config Module
 
-Google Real-Time Developer Notifications (RTDN) endpoint.
+### 6.1 Overview
 
-**Auth:** Google Pub/Sub Push Authentication
+Provides dynamic configuration for subscription pricing and default assets.
 
-**Request (Google sends via Pub/Sub):**
+### 6.2 Endpoints
 
-```ts
-interface GoogleWebhookPayload {
-  message: {
-    data: string; // Base64 encoded
-    messageId: string;
-    publishTime: string;
-  };
-  subscription: string;
-}
-
-// Decoded data içeriği
-interface GoogleNotificationData {
-  version: string;
-  packageName: string;
-  eventTimeMillis: string;
-  subscriptionNotification?: {
-    version: string;
-    notificationType: number; // 1-13 arası değerler
-    purchaseToken: string; // billingKey olarak kullanılır
-    subscriptionId: string; // productId
-  };
-}
-
-// Google notification type mapping
-const GoogleNotificationTypeMap = {
-  1: 'SUBSCRIPTION_RECOVERED',
-  2: 'SUBSCRIPTION_RENEWED',
-  3: 'SUBSCRIPTION_CANCELED',
-  4: 'SUBSCRIPTION_PURCHASED',
-  5: 'SUBSCRIPTION_ON_HOLD',
-  6: 'SUBSCRIPTION_IN_GRACE_PERIOD',
-  7: 'SUBSCRIPTION_RESTARTED',
-  12: 'SUBSCRIPTION_EXPIRED',
-  13: 'SUBSCRIPTION_PAUSED',
-};
-```
-
-**Response:**
-
-```ts
-// HTTP 200 OK (Pub/Sub için acknowledgment)
-interface GoogleWebhookResponse {
-  success: true;
-}
-```
-
-**Validation:**
-
-1. Pub/Sub push authentication token doğrula
-2. `packageName` kontrol et
-3. Message'ı acknowledge et (200 OK)
-
----
-
-#### 5.4. Webhook Event Handling
-
-| Event             | Platform                                                            | Action                                              |
-| ----------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
-| Yenileme başarılı | Apple: `DID_RENEW` / Google: `SUBSCRIPTION_RENEWED`                 | `expiresAt` güncelle, `status: active`              |
-| Ödeme başarısız   | Apple: `DID_FAIL_TO_RENEW` / Google: `SUBSCRIPTION_IN_GRACE_PERIOD` | Grace period başlat (genelde 16 gün)                |
-| İptal             | Apple: `CANCEL` / Google: `SUBSCRIPTION_CANCELED`                   | `status: canceled`, subscription döneme kadar aktif |
-| Süresi doldu      | Apple: `EXPIRED` / Google: `SUBSCRIPTION_EXPIRED`                   | `accountTier: free`, `status: expired`              |
-| İade              | Apple: `REFUND`                                                     | `accountTier: free`, hemen iptal                    |
-| Kurtarıldı        | Google: `SUBSCRIPTION_RECOVERED`                                    | Grace period bitti, `status: active`                |
-
-**Handling Flow:**
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Webhook Geldiğinde                                             │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Signature/Auth doğrula                                      │
-│  2. billingKey (originalTransactionId/purchaseToken) ile        │
-│     subscription bul                                            │
-│  3. Event type'a göre action uygula                             │
-│  4. User'ın accountTier ve subscriptionExpiresAt güncelle       │
-│  5. HTTP 200 döndür (acknowledge)                               │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-#### 5.5. Backend Webhook Handlers (Implementation)
-
-Her event için backend'de yapılacak işlemler:
-
-##### 5.5.1. Event Handlers
-
-```ts
-// ===== RENEWAL SUCCESS =====
-async function handleRenewalSuccess(billingKey: string, newExpiresAt: Date) {
-  await db.transaction(async (tx) => {
-    // 1. Subscription güncelle
-    const subscription = await tx.subscription.update({
-      where: { billingKey },
-      data: {
-        status: 'active',
-        expiresAt: newExpiresAt,
-        updatedAt: new Date(),
-      },
-    });
-
-    // 2. User'ı premium yap (zaten premium olabilir)
-    await tx.user.update({
-      where: { id: subscription.userId },
-      data: {
-        accountTier: 'premium',
-        subscriptionExpiresAt: newExpiresAt,
-      },
-    });
-  });
-}
-
-// ===== PAYMENT FAILED (Grace Period) =====
-async function handlePaymentFailed(billingKey: string) {
-  const gracePeriodDays = 16; // Apple: 16 gün, Google: 7-30 gün arası
-
-  await db.transaction(async (tx) => {
-    const subscription = await tx.subscription.update({
-      where: { billingKey },
-      data: {
-        status: 'grace_period',
-        updatedAt: new Date(),
-      },
-    });
-
-    // User hala premium kalır (grace period boyunca)
-    // Opsiyonel: Push notification gönder
-    await notificationService.send(subscription.userId, {
-      type: 'PAYMENT_FAILED',
-      message: 'Ödeme alınamadı, lütfen ödeme yönteminizi güncelleyin',
-    });
-  });
-}
-
-// ===== SUBSCRIPTION CANCELED =====
-async function handleCanceled(billingKey: string) {
-  await db.subscription.update({
-    where: { billingKey },
-    data: {
-      status: 'canceled',
-      updatedAt: new Date(),
-    },
-  });
-  // NOT: User hala premium kalır, expiresAt'e kadar
-  // Dönem sonunda accountTier: free yapılır (hourly job veya EXPIRED event)
-}
-
-// ===== SUBSCRIPTION EXPIRED =====
-async function handleExpired(billingKey: string) {
-  await db.transaction(async (tx) => {
-    const subscription = await tx.subscription.update({
-      where: { billingKey },
-      data: {
-        status: 'expired',
-        updatedAt: new Date(),
-      },
-    });
-
-    // User'ı free'ye düşür
-    await tx.user.update({
-      where: { id: subscription.userId },
-      data: {
-        accountTier: 'free',
-        subscriptionExpiresAt: null,
-      },
-    });
-  });
-}
-
-// ===== REFUND =====
-async function handleRefund(billingKey: string) {
-  await db.transaction(async (tx) => {
-    const subscription = await tx.subscription.update({
-      where: { billingKey },
-      data: {
-        status: 'refunded',
-        updatedAt: new Date(),
-      },
-    });
-
-    // Hemen free'ye düşür
-    await tx.user.update({
-      where: { id: subscription.userId },
-      data: {
-        accountTier: 'free',
-        subscriptionExpiresAt: null,
-      },
-    });
-  });
-}
-
-// ===== GRACE PERIOD RECOVERED =====
-async function handleRecovered(billingKey: string, newExpiresAt: Date) {
-  // Ödeme başarılı oldu, normal akışa dön
-  await handleRenewalSuccess(billingKey, newExpiresAt);
-}
-```
-
-##### 5.5.2. Idempotency (Tekrarlayan Event'ler)
-
-Apple/Google aynı event'i birden fazla kez gönderebilir. Duplicate işlemleri önlemek için:
-
-```ts
-interface WebhookLog {
-  id: string;
-  platform: 'apple' | 'google';
-  eventId: string; // Apple: notificationUUID, Google: messageId
-  eventType: string;
-  billingKey: string;
-  processedAt: Date;
-  payload: string; // JSON olarak sakla
-}
-
-async function processWebhook(eventId: string, handler: () => Promise<void>) {
-  // 1. Daha önce işlendi mi kontrol et
-  const existing = await db.webhookLog.findUnique({
-    where: { eventId },
-  });
-
-  if (existing) {
-    console.log(`Webhook already processed: ${eventId}`);
-    return { alreadyProcessed: true };
-  }
-
-  // 2. İşle
-  await handler();
-
-  // 3. Log'a kaydet
-  await db.webhookLog.create({
-    data: {
-      eventId,
-      platform,
-      eventType,
-      billingKey,
-      processedAt: new Date(),
-      payload: JSON.stringify(payload),
-    },
-  });
-
-  return { alreadyProcessed: false };
-}
-```
-
-##### 5.5.3. Error Handling & Retry
-
-```ts
-async function webhookController(req: Request, res: Response) {
-  try {
-    // 1. Signature doğrula
-    const isValid = await validateSignature(req);
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
-    // 2. Event'i işle
-    await processWebhookEvent(req.body);
-
-    // 3. Başarılı - 200 döndür (Apple/Google retry yapmaz)
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    // Log error for monitoring
-    logger.error('Webhook processing failed', { error, body: req.body });
-
-    // 500 döndür → Apple/Google retry yapacak
-    // Apple: 1 saat sonra, sonra 12 saat, sonra 24, 48, 72 saat
-    // Google: Exponential backoff
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-}
-```
-
-##### 5.5.4. Logging & Monitoring
-
-```ts
-// Her webhook için log
-interface WebhookMetrics {
-  total_received: Counter;
-  successful: Counter;
-  failed: Counter;
-  duplicate: Counter;
-  processing_time: Histogram;
-}
-
-// Alert conditions
-const alerts = {
-  // 5 dakikada 10'dan fazla başarısız webhook
-  highFailureRate: 'webhook_failed > 10 in 5m',
-
-  // 1 saattir hiç webhook gelmedi (market saatlerinde)
-  noWebhooks: 'webhook_received == 0 in 1h AND market_hours',
-
-  // İşlem süresi 5 saniyeyi aştı
-  slowProcessing: 'webhook_processing_time_p99 > 5s',
-};
-```
-
----
-
-#### 5.6. Apple App Store Connect Setup
-
-Apple'dan webhook almak için App Store Connect'te yapılacak ayarlar:
-
-##### Step 1: App Store Connect'e Giriş
-
-```
-https://appstoreconnect.apple.com
-→ Apps → [Uygulamanız] → App Information
-```
-
-##### Step 2: Server Notifications Ayarları
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  App Store Connect → App Information                            │
-├─────────────────────────────────────────────────────────────────┤
-│  App Store Server Notifications                                 │
-│                                                                  │
-│  Production Server URL:                                         │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ https://api.yourapp.com/api/webhooks/apple              │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  Sandbox Server URL:                                            │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ https://api-staging.yourapp.com/api/webhooks/apple      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  Version: ◉ Version 2 Notifications (Önerilen)                  │
-│           ○ Version 1 Notifications (Deprecated)                │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-##### Step 3: Shared Secret Oluşturma
-
-```
-App Store Connect → Apps → [App] → In-App Purchases → Manage
-→ App-Specific Shared Secret → Generate
-
-Bu secret'ı backend'de saklayın:
-APPLE_SHARED_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-##### Step 4: Test Notification Gönderme
-
-```
-App Store Connect → Apps → [App] → App Information
-→ App Store Server Notifications → Test Notification
-
-veya API ile:
-POST https://api.storekit.itunes.apple.com/inApps/v1/notifications/test
-```
-
-##### Apple Signature Validation (Backend)
-
-```ts
-import * as jose from 'jose';
-
-async function validateAppleSignature(signedPayload: string): Promise<boolean> {
-  try {
-    // Apple'ın public key'lerini al
-    const JWKS = jose.createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
-
-    // JWS'i doğrula ve decode et
-    const { payload } = await jose.jwtVerify(signedPayload, JWKS, {
-      issuer: 'https://appleid.apple.com',
-    });
-
-    // Bundle ID kontrolü
-    if (payload.data.bundleId !== process.env.APPLE_BUNDLE_ID) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Apple signature validation failed:', error);
-    return false;
-  }
-}
-```
-
----
-
-#### 5.7. Google Play Console Setup
-
-Google'dan Real-Time Developer Notifications (RTDN) almak için yapılacak ayarlar:
-
-##### Step 1: Google Cloud Console - Pub/Sub Topic Oluşturma
-
-```
-https://console.cloud.google.com
-→ Pub/Sub → Topics → Create Topic
-
-┌─────────────────────────────────────────────────────────────────┐
-│  Create a topic                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  Topic ID: play-billing-notifications                           │
-│                                                                 │
-│  ☑ Add a default subscription                                  │
-│                                                                 │
-│  Full topic name:                                               │
-│  projects/your-project-id/topics/play-billing-notifications     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-##### Step 2: Pub/Sub Subscription Oluşturma (Push)
-
-```
-Pub/Sub → Subscriptions → Create Subscription
-
-┌─────────────────────────────────────────────────────────────────┐
-│  Create subscription                                             │
-├─────────────────────────────────────────────────────────────────┤
-│  Subscription ID: play-billing-push                             │
-│                                                                  │
-│  Select a Cloud Pub/Sub topic:                                  │
-│  projects/your-project-id/topics/play-billing-notifications    │
-│                                                                  │
-│  Delivery type: ◉ Push                                          │
-│                                                                  │
-│  Endpoint URL:                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ https://api.yourapp.com/api/webhooks/google             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  ☑ Enable authentication                                        │
-│  Service account: your-pubsub-sa@project.iam.gserviceaccount   │
-│  Audience: https://api.yourapp.com                              │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-##### Step 3: Google Play Console - RTDN Etkinleştirme
-
-```
-https://play.google.com/console
-→ [Uygulamanız] → Monetization setup → Real-time developer notifications
-
-┌─────────────────────────────────────────────────────────────────┐
-│  Real-time developer notifications                               │
-├─────────────────────────────────────────────────────────────────┤
-│  Topic name:                                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ projects/your-project-id/topics/play-billing-notif...   │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  [Send test notification]  [Save changes]                       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-##### Step 4: Service Account Permissions
-
-```
-Google Cloud Console → IAM & Admin → IAM
-
-google-play-developer-notifications@system.gserviceaccount.com
-  → Pub/Sub Publisher role ekle
-
-Bu, Google Play'in topic'inize mesaj göndermesini sağlar.
-```
-
-##### Step 5: Backend Service Account
-
-```
-Google Cloud Console → IAM & Admin → Service Accounts
-→ Create Service Account
-
-Name: play-billing-verifier
-Roles:
-  - Pub/Sub Subscriber
-  - Android Publisher (Play Developer API için)
-
-JSON key indir → Backend'e ekle:
-GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/path/to/service-account.json
-```
-
-##### Google Pub/Sub Validation (Backend)
-
-```ts
-import { OAuth2Client } from 'google-auth-library';
-
-const authClient = new OAuth2Client();
-
-async function validateGooglePubSub(req: Request): Promise<boolean> {
-  try {
-    // Authorization header'dan token al
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return false;
-    }
-    const token = authHeader.substring(7);
-
-    // Token'ı doğrula
-    const ticket = await authClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_PUBSUB_AUDIENCE, // https://api.yourapp.com
-    });
-
-    const payload = ticket.getPayload();
-
-    // Service account email kontrolü
-    if (!payload?.email?.endsWith('.iam.gserviceaccount.com')) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Google Pub/Sub validation failed:', error);
-    return false;
-  }
-}
-
-// Subscription durumunu doğrulamak için Google Play API
-import { google } from 'googleapis';
-
-async function verifyGoogleSubscription(
-  packageName: string,
-  subscriptionId: string,
-  purchaseToken: string,
-) {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
-    scopes: ['https://www.googleapis.com/auth/androidpublisher'],
-  });
-
-  const androidPublisher = google.androidpublisher({ version: 'v3', auth });
-
-  const response = await androidPublisher.purchases.subscriptions.get({
-    packageName,
-    subscriptionId,
-    token: purchaseToken,
-  });
-
-  return response.data;
-}
-```
-
----
-
-#### 5.8. Environment Variables
-
-```bash
-# ===== APPLE =====
-APPLE_BUNDLE_ID=com.yourcompany.muhasebat
-APPLE_SHARED_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-APPLE_KEY_ID=XXXXXXXXXX
-APPLE_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-APPLE_PRIVATE_KEY_PATH=/path/to/AuthKey_XXXXXXXXXX.p8
-
-# Apple API endpoints
-APPLE_PRODUCTION_URL=https://api.storekit.itunes.apple.com
-APPLE_SANDBOX_URL=https://api.storekit-sandbox.itunes.apple.com
-
-# ===== GOOGLE =====
-GOOGLE_PACKAGE_NAME=com.yourcompany.muhasebat
-GOOGLE_PUBSUB_TOPIC=projects/your-project/topics/play-billing-notifications
-GOOGLE_PUBSUB_AUDIENCE=https://api.yourapp.com
-GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/path/to/service-account.json
-
-# ===== WEBHOOK =====
-WEBHOOK_SECRET_HEADER=X-Webhook-Secret  # Internal validation için (opsiyonel)
-WEBHOOK_LOG_RETENTION_DAYS=90           # Webhook log'larını ne kadar sakla
-```
-
----
-
-#### 5.9. Subscription Flow Diagram (Complete)
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        COMPLETE SUBSCRIPTION FLOW                            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                   │
-│  │   Mobile     │    │  App Store/  │    │   Backend    │                   │
-│  │     App      │    │  Play Store  │    │    Server    │                   │
-│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘                   │
-│         │                   │                   │                            │
-│  1. İLK SATIN ALMA                                                          │
-│         │ ──Purchase──────► │                   │                            │
-│         │ ◄────Receipt───── │                   │                            │
-│         │ ─────────────────────Verify──────────►│                            │
-│         │                   │                   │ (validate with Store API)  │
-│         │ ◄────────────────────Premium─────────│                            │
-│         │                   │                   │                            │
-│  2. OTOMATİK YENİLEME (Her ay)                                              │
-│         │                   │ ──DID_RENEW──────►│                            │
-│         │                   │                   │ (update expiresAt)         │
-│         │                   │ ◄─────200 OK──────│                            │
-│         │                   │                   │                            │
-│  3. ÖDEME BAŞARISIZ                                                         │
-│         │                   │ ─FAIL_TO_RENEW───►│                            │
-│         │ ◄──Push Notif─────────────────────────│ (grace period)             │
-│         │                   │                   │                            │
-│  4. ÖDEME KURTARILDI                                                        │
-│         │                   │ ──RECOVERED──────►│                            │
-│         │                   │                   │ (back to active)           │
-│         │                   │                   │                            │
-│  5. KULLANICI İPTAL ETTİ                                                    │
-│         │                   │ ──CANCELED───────►│                            │
-│         │                   │                   │ (status: canceled)         │
-│         │                   │                   │ (still premium until exp)  │
-│         │                   │                   │                            │
-│  6. SÜRESİ DOLDU                                                            │
-│         │                   │ ──EXPIRED────────►│                            │
-│         │                   │                   │ (accountTier: free)        │
-│         │                   │                   │                            │
-│  7. İADE YAPILDI                                                            │
-│         │                   │ ──REFUND─────────►│                            │
-│         │                   │                   │ (immediate free)           │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📘 APP MODULE (App Init)
-
-### 1. Overview
-
-Bootstraps the entire application session. Creates or retrieves user based on device ID.
-
-### 2. App Init Flow
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    POST /api/app/init                    │
-├─────────────────────────────────────────────────────────┤
-│  1. deviceId ile mevcut user aranır                     │
-│     ├─ Bulundu → Mevcut user + yeni token döner         │
-│     └─ Bulunamadı → Yeni user oluşturulur + token döner │
-│                                                          │
-│  2. Token JWT formatında, süresiz (no expiry)           │
-│                                                          │
-│  3. isNewUser flag'i frontend'e bilgi verir             │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 3. Endpoint
-
-#### POST /api/app/init
-
-**Auth:** None (Public endpoint)
-
-```ts
-interface AppInitRequest {
-  deviceId: string; // Expo device ID veya UUID fallback
-  platform: 'ios' | 'android';
-  appVersion: string;
-  buildNumber?: string;
-  locale?: string;
-  timezone?: string;
-  pushToken?: string;
-}
-```
-
-```ts
-interface AppInitResponse {
-  serverTime: string;
-  token: string; // JWT, süresiz
-  isNewUser: boolean; // true: yeni kullanıcı oluşturuldu
-  user: {
-    id: string;
-    deviceId: string;
-    accountTier: AccountTier;
-    subscriptionExpiresAt: string | null;
-    createdAt: string;
-  };
-  subscription: {
-    status: SubscriptionStatus;
-    expiresAt: string | null;
-  } | null;
-  trackedAssets: TrackedAsset[];
-  paywallConfig: {
-    price: number;
-    currency: string;
-    period: 'monthly';
-    features: string[];
-  };
-  featureFlags: Record<string, boolean>;
-}
-```
-
-### 4. Device ID Fallback Strategy
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Frontend Device ID Generation                           │
-├─────────────────────────────────────────────────────────┤
-│  1. expo-application veya expo-device ile device ID al  │
-│  2. Başarısız olursa → UUID generate et                 │
-│  3. AsyncStorage'da sakla                               │
-│  4. Her app/init'te aynı ID'yi gönder                   │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📘 CONFIG MODULE
-
-### 1. GET /api/config/subscription
+#### GET /api/config/subscription
 
 Returns paywall configuration.
 
 **Auth:** None (Public endpoint)
 
-```ts
+**Response:**
+
+```typescript
 interface SubscriptionConfigResponse {
   subscription: {
     price: number;
-    currency: string;
+    currency: string; // "TRY"
     period: 'monthly';
     features: string[];
     description?: string;
@@ -1112,13 +679,15 @@ interface SubscriptionConfigResponse {
 
 ---
 
-### 2. GET /api/config/default-assets
+#### GET /api/config/default-assets
 
 Returns default assets shown when user has no tracked assets.
 
 **Auth:** None (Public endpoint)
 
-```ts
+**Response:**
+
+```typescript
 interface DefaultAssetsResponse {
   assets: Array<{
     code: string;
@@ -1129,80 +698,87 @@ interface DefaultAssetsResponse {
 }
 ```
 
-**Static List:**
+**Static List (Hardcoded):**
 
-- `GRAM_GOLD` (commodity)
-- `USD` (currency)
-- `EUR` (currency)
-
-**Usage:**
-
-- Tracked list empty → show default assets
-- 1+ tracked asset → show only tracked list
+| Code        | Type      | Name            |
+| ----------- | --------- | --------------- |
+| `GRAM_GOLD` | commodity | Gram Altın      |
+| `USD`       | currency  | Amerikan Doları |
+| `EUR`       | currency  | Euro            |
 
 ---
 
-## 📘 RATE MODULE
+## 7. Rate Module
 
-(Free Market & Bank Rates + Scraper + Converter)
+### 7.1 Overview
 
-### 1. Overview
+Manages currency/commodity rates from free market and banks.
 
-The **Rate Module** manages:
+**Responsibilities:**
 
-- Supported currencies, commodities, and banks
-- Free market rates (live)
-- Bank-specific buy/sell rates (Premium)
-- Conversion engine (free market + premium bank mode)
+- Supported currencies, commodities, banks definitions
+- Free market rates (live, public)
+- Bank-specific rates (premium only)
+- Currency converter engine
 - Daily change calculations
-- Automated scraper that synchronizes data from _canlidoviz.com_
+- Automated scraper service
 
-This module **does not** handle:
+### 7.2 Supported Assets
 
-- Authentication (→ User Module)
-- Tracked assets storage (→ User Module)
-- Subscription state (→ Subscription Module)
-- Paywall rules (→ Config Module)
+**Currencies (13):**
+USD, EUR, GBP, CHF, CAD, RUB, AED, AUD, DKK, SEK, NOK, JPY, KWD
 
----
+**Commodities (9):**
+| Code | Name |
+|------|------|
+| `GRAM_GOLD` | Gram Altın |
+| `ONS` | Ons |
+| `CEYREK` | Çeyrek |
+| `YARIM` | Yarım |
+| `TAM` | Tam |
+| `CUMHURIYET` | Cumhuriyet |
+| `GREMSE` | Gremse |
+| `HAS` | Has |
+| `GUMUS` | Gümüş |
 
-### 2. Data Models
+**Banks (19):**
+KAPALI_CARSI, AKBANK, ALBARAKA, DENIZBANK, ENPARA, FIBABANKA, QNB_FINANSBANK, GARANTI, HALKBANK, HSBC, ING, IS_BANKASI, KUVEYT_TURK, MERKEZ_BANKASI, SEKERBANK, TEB, VAKIFBANK, YAPI_KREDI, ZIRAAT
 
-#### 2.1 Currency
+### 7.3 Data Models
 
-```ts
+**Currency:**
+
+```typescript
 interface Currency {
-  code: string;
-  name: string;
-  flagUrl: string;
+  code: string; // "USD"
+  name: string; // "Amerikan Doları"
+  flagUrl: string; // "/assets/flags/usd.png"
 }
 ```
 
-#### 2.2 Commodity
+**Commodity:**
 
-```ts
+```typescript
 interface Commodity {
-  code: string;
-  name: string;
-  logoUrl: string;
+  code: string; // "GRAM_GOLD"
+  name: string; // "Gram Altın"
+  logoUrl: string; // "/assets/commodities/gram-gold.png"
 }
 ```
 
-#### 2.3 Bank
+**Bank:**
 
-```ts
+```typescript
 interface Bank {
-  code: string;
-  name: string;
-  logoUrl: string;
+  code: string; // "ZIRAAT"
+  name: string; // "Ziraat Bankası"
+  logoUrl: string; // "/assets/banks/ziraat.png"
 }
 ```
 
-#### 2.4 Free Market Rate
+**Free Market Rate:**
 
-```ts
-type Trend = 'up' | 'down' | 'stable';
-
+```typescript
 interface FreeMarketRate {
   code: string;
   type: AssetType;
@@ -1216,121 +792,116 @@ interface FreeMarketRate {
 }
 ```
 
-#### 2.5 Bank Rate
+**Bank Rate:**
 
-```ts
+```typescript
 interface BankRate {
   bankCode: string;
-  buyingPrice: number | null; // null → UI'da "—" gösterilir
-  sellingPrice: number | null; // Her ikisi de dönmeli
+  buyingPrice: number | null; // null = bank doesn't offer
+  sellingPrice: number | null;
   lastUpdated: string;
 }
 ```
 
-> **Not:** Hem `buyingPrice` hem `sellingPrice` her zaman döner. Biri `null` ise ilgili banka o işlem türü için fiyat sağlamıyor demektir.
+**Market Status:**
 
----
+```typescript
+interface MarketStatus {
+  isOpen: boolean;
+  lastCloseAt: string | null;
+  nextOpenAt: string | null;
+}
+```
 
-### 3. Premium Access Control
+### 7.4 Daily Change Calculation
 
-Premium endpoint'ler için guard mekanizması.
+```typescript
+// Stored daily at market close (18:00 Turkey time)
+interface PreviousClose {
+  code: string;
+  type: AssetType;
+  closingPrice: number; // = sellingPrice at close
+  closedAt: string;
+}
 
-#### Protected Endpoints
+// Calculation
+dailyChange = currentSellingPrice - previousClose.closingPrice;
+dailyChangePercentage = (dailyChange / previousClose.closingPrice) * 100;
+trend = dailyChange > 0 ? 'up' : dailyChange < 0 ? 'down' : 'stable';
+```
+
+**Market Hours (Turkey Time - UTC+3):**
+
+- Weekdays: 09:00 - 18:00
+- Weekends: Closed
+- Turkish holidays: Closed
+
+**Weekend/Holiday Handling:**
+
+- Use last trading day's close as reference
+
+### 7.5 Premium Access Control
+
+**Protected Endpoints:**
 
 - `GET /api/rates/banks/:code`
 - `GET /api/rates/banks/:code/:bankCode`
 - `POST /api/converter/calculate` (when `includeBanks: true`)
 
-#### Guard Logic
+**Guard Logic:**
 
-```ts
-// Pseudocode
-@Guard()
-class PremiumGuard {
-  canActivate(context) {
-    const user = context.getUser(); // Token'dan
-
-    if (user.accountTier !== 'premium') {
-      throw new ForbiddenException({
-        code: 'PREMIUM_REQUIRED',
-        message: 'Bu özellik premium üyelik gerektirir',
-      });
-    }
-
-    return true;
-  }
+```typescript
+if (user.accountTier !== 'premium') {
+  throw ForbiddenException({
+    code: 'PREMIUM_REQUIRED',
+    message: 'Bu özellik premium üyelik gerektirir',
+  });
 }
 ```
 
-#### Error Response (Free User)
+### 7.6 Endpoints
 
-```ts
-// HTTP 403 Forbidden
-{
-  "error": {
-    "code": "PREMIUM_REQUIRED",
-    "message": "Bu özellik premium üyelik gerektirir"
-  }
-}
-```
+#### GET /api/currencies
 
----
-
-### 4. Common Error Schema
-
-```ts
-interface ErrorResponse {
-  error: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-}
-```
-
----
-
-### 5. Endpoints
-
-#### 5.1 Definitions (Currencies / Commodities / Banks)
-
-##### 5.1.1 GET /api/currencies
-
-Returns the list of supported currencies.
+Returns supported currencies list.
 
 **Auth:** Bearer Token (Required)
 
-**Response**
+**Response:**
 
-```ts
+```typescript
 interface CurrenciesResponse {
   currencies: Currency[];
 }
 ```
 
-##### 5.1.2 GET /api/commodities
+---
 
-Returns the list of supported commodities.
+#### GET /api/commodities
+
+Returns supported commodities list.
 
 **Auth:** Bearer Token (Required)
 
-**Response**
+**Response:**
 
-```ts
+```typescript
 interface CommoditiesResponse {
   commodities: Commodity[];
 }
 ```
 
-##### 5.1.3 GET /api/banks
+---
 
-Returns the list of supported banks.
+#### GET /api/banks
+
+Returns supported banks list.
 
 **Auth:** Bearer Token (Required)
 
-**Response**
+**Response:**
 
-```ts
+```typescript
 interface BanksResponse {
   banks: Bank[];
 }
@@ -1338,25 +909,24 @@ interface BanksResponse {
 
 ---
 
-#### 5.2 Free Market Rates
+#### GET /api/rates/free-market
 
-##### 5.2.1 GET /api/rates/free-market
-
-Fetch all free market rates with optional filtering + tracking flag.
+Fetch all free market rates with optional filtering.
 
 **Auth:** Bearer Token (Required)
 
-**Query Params**
-| Param | Type | Description |
-|-------|------|-------------|
-| `type` | `currency \| commodity` | Filter by asset type |
-| `code` | `string` | Filter by specific code |
-| `search` | `string` | Search by name (min 2 chars, case-insensitive) |
+**Query Params:**
 
-**Response**
+| Param    | Type                    | Required | Description                       |
+| -------- | ----------------------- | -------- | --------------------------------- |
+| `type`   | `currency \| commodity` | No       | Filter by asset type              |
+| `search` | `string`                | No       | Search by name/code (min 2 chars) |
 
-```ts
+**Response:**
+
+```typescript
 interface FreeMarketRatesResponse {
+  market: MarketStatus;
   items: Array<
     FreeMarketRate & {
       name: string;
@@ -1367,46 +937,62 @@ interface FreeMarketRatesResponse {
 }
 ```
 
-##### 5.2.2 GET /api/rates/free-market/:code
+---
+
+#### GET /api/rates/free-market/:code
 
 Return a single free market item.
 
 **Auth:** Bearer Token (Required)
 
-```ts
+**Query Params:**
+
+| Param  | Type                    | Required | Description |
+| ------ | ----------------------- | -------- | ----------- |
+| `type` | `currency \| commodity` | Yes      | Asset type  |
+
+**Response:**
+
+```typescript
 interface SingleFreeMarketRateResponse {
+  market: MarketStatus;
   item: FreeMarketRate & {
     name: string;
     logoUrl: string;
+    isTracked: boolean;
   };
 }
 ```
 
+**Errors:**
+
+- `ASSET_NOT_FOUND`: Invalid code or type
+
 ---
 
-#### 5.3 Bank Rates (Premium Only)
+#### GET /api/rates/banks/:code (Premium)
 
-##### 5.3.1 GET /api/rates/banks/:code
-
-Returns bank-specific prices & best price for an asset.
+Returns bank-specific prices for an asset.
 
 **Auth:** Bearer Token (Required) + Premium Guard
 
-**Query Params**
-| Param | Type | Description |
-|-------|------|-------------|
-| `type` | `currency \| commodity` | Asset type (required) |
-| `transactionType` | `buy \| sell` | Transaction direction (required) |
+**Query Params:**
 
-**Response**
+| Param             | Type                    | Required | Description           |
+| ----------------- | ----------------------- | -------- | --------------------- |
+| `type`            | `currency \| commodity` | Yes      | Asset type            |
+| `transactionType` | `buy \| sell`           | Yes      | Transaction direction |
 
-```ts
+**Response:**
+
+```typescript
 interface BankRatesResponse {
   item: {
     code: string;
     name: string;
     logoUrl: string;
   };
+  transactionType: 'buy' | 'sell';
   bankRates: Array<{
     bankCode: string;
     bankName: string;
@@ -1422,13 +1008,33 @@ interface BankRatesResponse {
 }
 ```
 
-##### 5.3.2 GET /api/rates/banks/:code/:bankCode
+**Sorting:**
+
+- `transactionType: 'buy'` → Sort by price ASC (cheapest first)
+- `transactionType: 'sell'` → Sort by price DESC (highest first)
+
+**Best Rate:**
+
+- `buy` → Lowest sellingPrice
+- `sell` → Highest buyingPrice
+
+---
+
+#### GET /api/rates/banks/:code/:bankCode (Premium)
 
 Return single bank detail for an asset.
 
 **Auth:** Bearer Token (Required) + Premium Guard
 
-```ts
+**Query Params:**
+
+| Param  | Type                    | Required | Description |
+| ------ | ----------------------- | -------- | ----------- |
+| `type` | `currency \| commodity` | Yes      | Asset type  |
+
+**Response:**
+
+```typescript
 interface SingleBankRateResponse {
   item: {
     code: string;
@@ -1451,18 +1057,15 @@ interface SingleBankRateResponse {
 
 ---
 
-#### 5.4 Converter Engine
+#### POST /api/converter/calculate
 
-##### 5.4.1 POST /api/converter/calculate
-
-Convert FX/commodity → TRY using free market and (optional) banks.
+Convert FX/commodity → TRY.
 
 **Auth:** Bearer Token (Required)
-**Premium:** Required only when `includeBanks: true`
 
-**Request**
+**Request:**
 
-```ts
+```typescript
 interface ConverterRequest {
   fromCode: string;
   fromType: AssetType;
@@ -1472,16 +1075,15 @@ interface ConverterRequest {
 }
 ```
 
-**Response**
+**Response:**
 
-```ts
+```typescript
 interface ConverterResponse {
   freeMarket: {
     rate: number;
     result: number;
   };
   banks?: Array<{
-    // Only if includeBanks: true AND premium user
     bankCode: string;
     bankName: string;
     bankLogoUrl: string;
@@ -1493,20 +1095,26 @@ interface ConverterResponse {
 
 **Business Rules:**
 
-- Free user with `includeBanks: true` → `banks` array returns empty `[]`
-- Premium user with `includeBanks: true` → `banks` array populated
+| User    | includeBanks    | Result                             |
+| ------- | --------------- | ---------------------------------- |
+| Free    | false/undefined | `freeMarket` only                  |
+| Free    | true            | `freeMarket` only, `banks` omitted |
+| Premium | false/undefined | `freeMarket` only                  |
+| Premium | true            | `freeMarket` + `banks` array       |
 
----
+**Calculation:**
 
-#### 5.5 Scraper (Internal)
+- `transactionType: 'buy'` → Use sellingPrice
+- `transactionType: 'sell'` → Use buyingPrice
+- `result = amount × rate`
 
-##### Overview
+### 7.7 Scraper Service
 
-Automated data synchronization from canlidoviz.com.
+**Data Source:** canlidoviz.com
 
 **Frequency:** Every 1 minute (cron job)
 
-##### Retry Mechanism
+**Retry Mechanism:**
 
 | Attempt   | Wait Time  | Action                              |
 | --------- | ---------- | ----------------------------------- |
@@ -1514,36 +1122,40 @@ Automated data synchronization from canlidoviz.com.
 | 2nd error | 30 seconds | Retry                               |
 | 3rd error | —          | Log error, wait for next cron cycle |
 
-##### Stale Data Handling
+**Stale Data Handling:**
 
 | Condition             | Action                                |
 | --------------------- | ------------------------------------- |
-| Data > 5 minutes old  | Add `isStale: true` to API responses  |
+| Data > 5 minutes old  | Add `isStale: true` to responses      |
 | Data > 15 minutes old | Trigger monitoring alert              |
 | Scraper fails         | Continue serving last successful data |
 
-##### 5.5.1 POST /api/internal/scraper/run
+#### POST /api/internal/rates/scraper/run
 
 Manual trigger for scraper.
 
 **Auth:** Internal API Key
 
-```ts
+**Response:**
+
+```typescript
 interface ScraperRunResponse {
   success: true;
   startedAt: string;
 }
 ```
 
-##### 5.5.2 GET /api/internal/scraper/health
+---
 
-Scraper health check for monitoring.
+#### GET /api/internal/rates/scraper/health
+
+Scraper health check.
 
 **Auth:** Internal API Key
 
-```ts
-type ScraperStatus = 'healthy' | 'degraded' | 'unhealthy';
+**Response:**
 
+```typescript
 interface ScraperHealthResponse {
   status: ScraperStatus;
   lastSuccessAt: string | null;
@@ -1556,95 +1168,592 @@ interface ScraperHealthResponse {
 
 **Status Logic:**
 
-- `healthy`: Son scrape başarılı, veri taze
-- `degraded`: Veri stale (>5 dk) veya 1-2 ardışık hata
-- `unhealthy`: 3+ ardışık hata veya veri >15 dk eski
+- `healthy`: Last scrape successful, data fresh
+- `degraded`: Data stale (>5 min) or 1-2 consecutive errors
+- `unhealthy`: 3+ consecutive errors or data >15 min old
 
 ---
 
-### 6. Business Rules
+## 8. Webhooks
 
-**Free Market**
+### 8.1 Overview
 
-- `current` = `sellingPrice`
-- `previousClose` stored daily
-- `dailyChange` = `current` − `previousClose`
+Server-to-Server notifications from Apple and Google for subscription lifecycle events.
 
-**Bank Rates**
+**Benefits:**
 
-- User wants to `buy` → show bank's `sellingPrice`
-- User wants to `sell` → show bank's `buyingPrice`
+- Real-time subscription status updates
+- Handle events when app is not running
+- More reliable than client-side receipt validation
+- Required for grace period and refund handling
 
-**Search**
+### 8.2 Apple App Store Server Notifications
 
-- Case-insensitive
-- Minimum 2 characters
+#### Notification Types
 
----
+| Type                   | Description                          |
+| ---------------------- | ------------------------------------ |
+| `DID_RENEW`            | Auto-renewal successful              |
+| `DID_FAIL_TO_RENEW`    | Payment failed (grace period starts) |
+| `CANCEL`               | User canceled subscription           |
+| `EXPIRED`              | Subscription expired                 |
+| `REFUND`               | Refund issued                        |
+| `GRACE_PERIOD_EXPIRED` | Grace period ended (no payment)      |
+| `SUBSCRIBED`           | Initial purchase                     |
 
-### 7. Module Interactions
+#### Endpoint: POST /api/webhooks/apple
 
-| Module              | Purpose                                |
-| ------------------- | -------------------------------------- |
-| User Module         | deviceId, tracked assets, account tier |
-| Subscription Module | Premium validation                     |
-| Config Module       | Paywall logic, default assets          |
+**Auth:** Apple JWS Signature Validation
 
----
+**Request Payload:**
 
-## 📘 SUMMARY: Type Definitions
+```typescript
+interface AppleWebhookPayload {
+  signedPayload: string; // JWS (JSON Web Signature)
+}
 
-```ts
-// ===== Common Types =====
-type AccountTier = 'free' | 'premium';
-type AssetType = 'currency' | 'commodity';
-type Trend = 'up' | 'down' | 'stable';
-type SubscriptionPlatform = 'ios' | 'android';
-type SubscriptionStatus = 'active' | 'expired' | 'canceled';
-type ScraperStatus = 'healthy' | 'degraded' | 'unhealthy';
+// Decoded payload
+interface AppleNotificationPayload {
+  notificationType: AppleNotificationType;
+  subtype?: string;
+  notificationUUID: string; // For idempotency
+  data: {
+    bundleId: string;
+    environment: 'Sandbox' | 'Production';
+    signedTransactionInfo: string; // JWS
+    signedRenewalInfo: string; // JWS
+  };
+}
 
-// ===== User Module =====
-interface User { ... }
-interface TrackedAsset { ... }
+// Decoded transaction info
+interface AppleTransactionInfo {
+  originalTransactionId: string; // billingKey
+  transactionId: string;
+  productId: string;
+  purchaseDate: number; // Unix timestamp (ms)
+  expiresDate: number; // Unix timestamp (ms)
+}
+```
 
-// ===== Subscription Module =====
-interface Subscription { ... }
+**Response:**
 
-// ===== Rate Module =====
-interface Currency { ... }
-interface Commodity { ... }
-interface Bank { ... }
-interface FreeMarketRate { ... }
-interface BankRate { ... }
+```typescript
+// HTTP 200 OK
+{ "success": true }
+```
+
+**Validation Steps:**
+
+1. Verify JWS signature using Apple's public keys
+2. Check `bundleId` matches app
+3. Validate `environment` (Production/Sandbox)
+
+#### Apple Setup (App Store Connect)
+
+```
+App Store Connect → Apps → [App] → App Information → App Store Server Notifications
+
+Production Server URL: https://api.yourapp.com/api/webhooks/apple
+Sandbox Server URL: https://api-staging.yourapp.com/api/webhooks/apple
+Version: Version 2 Notifications (Required)
+```
+
+**Shared Secret:**
+
+```
+App Store Connect → Apps → [App] → In-App Purchases → Manage
+→ App-Specific Shared Secret → Generate
+```
+
+### 8.3 Google Play Real-Time Developer Notifications
+
+#### Notification Types
+
+| Type ID | Name                           | Description            |
+| ------- | ------------------------------ | ---------------------- |
+| 1       | `SUBSCRIPTION_RECOVERED`       | Payment recovered      |
+| 2       | `SUBSCRIPTION_RENEWED`         | Renewal successful     |
+| 3       | `SUBSCRIPTION_CANCELED`        | User canceled          |
+| 4       | `SUBSCRIPTION_PURCHASED`       | Initial purchase       |
+| 5       | `SUBSCRIPTION_ON_HOLD`         | Account on hold        |
+| 6       | `SUBSCRIPTION_IN_GRACE_PERIOD` | Payment pending        |
+| 7       | `SUBSCRIPTION_RESTARTED`       | Subscription restarted |
+| 12      | `SUBSCRIPTION_EXPIRED`         | Subscription expired   |
+| 13      | `SUBSCRIPTION_PAUSED`          | Subscription paused    |
+
+#### Endpoint: POST /api/webhooks/google
+
+**Auth:** Google Pub/Sub Push Authentication
+
+**Request Payload:**
+
+```typescript
+interface GoogleWebhookPayload {
+  message: {
+    data: string; // Base64 encoded
+    messageId: string; // For idempotency
+    publishTime: string;
+  };
+  subscription: string;
+}
+
+// Decoded message.data
+interface GoogleNotificationData {
+  version: string;
+  packageName: string;
+  eventTimeMillis: string;
+  subscriptionNotification?: {
+    version: string;
+    notificationType: number; // 1-13
+    purchaseToken: string; // billingKey
+    subscriptionId: string; // Product ID
+  };
+}
+```
+
+**Response:**
+
+```typescript
+// HTTP 200 OK (acknowledges message)
+{ "success": true }
+```
+
+#### Google Setup
+
+**1. Create Pub/Sub Topic (Google Cloud Console):**
+
+```
+Pub/Sub → Topics → Create Topic
+Topic ID: play-billing-notifications
+```
+
+**2. Create Push Subscription:**
+
+```
+Pub/Sub → Subscriptions → Create Subscription
+Subscription ID: play-billing-push
+Delivery type: Push
+Endpoint URL: https://api.yourapp.com/api/webhooks/google
+Enable authentication: Yes
+```
+
+**3. Grant Publisher Permission:**
+
+```
+IAM → Add:
+Member: google-play-developer-notifications@system.gserviceaccount.com
+Role: Pub/Sub Publisher
+```
+
+**4. Configure in Play Console:**
+
+```
+Play Console → [App] → Monetization setup → Real-time developer notifications
+Topic name: projects/your-project-id/topics/play-billing-notifications
+```
+
+### 8.4 Event Handling
+
+| Event           | Platform                                                            | Backend Action                             |
+| --------------- | ------------------------------------------------------------------- | ------------------------------------------ |
+| Renewal success | Apple: `DID_RENEW` / Google: `SUBSCRIPTION_RENEWED`                 | Update `expiresAt`, `status: active`       |
+| Payment failed  | Apple: `DID_FAIL_TO_RENEW` / Google: `SUBSCRIPTION_IN_GRACE_PERIOD` | Set `status: grace_period`                 |
+| Canceled        | Apple: `CANCEL` / Google: `SUBSCRIPTION_CANCELED`                   | Set `status: canceled`                     |
+| Expired         | Apple: `EXPIRED` / Google: `SUBSCRIPTION_EXPIRED`                   | Set `accountTier: free`, `status: expired` |
+| Refund          | Apple: `REFUND`                                                     | Immediate `accountTier: free`              |
+| Recovered       | Google: `SUBSCRIPTION_RECOVERED`                                    | Set `status: active`                       |
+
+### 8.5 Event Handlers Implementation
+
+```typescript
+// RENEWAL SUCCESS
+async function handleRenewalSuccess(billingKey: string, newExpiresAt: Date) {
+  await db.$transaction(async (tx) => {
+    const subscription = await tx.subscription.update({
+      where: { billingKey },
+      data: { status: 'active', expiresAt: newExpiresAt },
+    });
+
+    await tx.user.update({
+      where: { id: subscription.userId },
+      data: { accountTier: 'premium', subscriptionExpiresAt: newExpiresAt },
+    });
+  });
+}
+
+// PAYMENT FAILED (Grace Period)
+async function handlePaymentFailed(billingKey: string) {
+  await db.subscription.update({
+    where: { billingKey },
+    data: { status: 'grace_period' },
+  });
+  // User keeps premium during grace period
+  // Optional: Send push notification
+}
+
+// CANCELED
+async function handleCanceled(billingKey: string) {
+  await db.subscription.update({
+    where: { billingKey },
+    data: { status: 'canceled' },
+  });
+  // User stays premium until expiresAt
+}
+
+// EXPIRED
+async function handleExpired(billingKey: string) {
+  await db.$transaction(async (tx) => {
+    const subscription = await tx.subscription.update({
+      where: { billingKey },
+      data: { status: 'expired' },
+    });
+
+    await tx.user.update({
+      where: { id: subscription.userId },
+      data: { accountTier: 'free', subscriptionExpiresAt: null },
+    });
+  });
+}
+
+// REFUND
+async function handleRefund(billingKey: string) {
+  await db.$transaction(async (tx) => {
+    const subscription = await tx.subscription.update({
+      where: { billingKey },
+      data: { status: 'refunded' },
+    });
+
+    await tx.user.update({
+      where: { id: subscription.userId },
+      data: { accountTier: 'free', subscriptionExpiresAt: null },
+    });
+  });
+}
+```
+
+### 8.6 Idempotency
+
+Store webhook logs to prevent duplicate processing:
+
+```typescript
+interface WebhookLog {
+  id: string;
+  eventId: string; // Apple: notificationUUID, Google: messageId
+  platform: 'apple' | 'google';
+  eventType: string;
+  billingKey: string;
+  processedAt: Date;
+  payload: string; // JSON
+}
+```
+
+**Processing Logic:**
+
+```typescript
+async function processWebhook(eventId: string, handler: () => Promise<void>) {
+  const existing = await db.webhookLog.findUnique({ where: { eventId } });
+  if (existing) {
+    return { alreadyProcessed: true };
+  }
+
+  await handler();
+
+  await db.webhookLog.create({
+    data: { eventId, platform, eventType, billingKey, processedAt: new Date(), payload },
+  });
+}
+```
+
+### 8.7 Retry Behavior
+
+**Apple Retry Schedule (on non-2xx response):**
+
+1. 1 hour later
+2. 12 hours later
+3. 24 hours later
+4. 48 hours later
+5. 72 hours later
+6. Gives up
+
+**Google Pub/Sub Retry:**
+
+- Exponential backoff starting at 10 seconds
+- Max 10 minutes between retries
+- Continues for 7 days
+
+### 8.8 Environment Variables
+
+```bash
+# Apple
+APPLE_BUNDLE_ID=com.yourcompany.muhasebat
+APPLE_SHARED_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Google
+GOOGLE_PACKAGE_NAME=com.yourcompany.muhasebat
+GOOGLE_PUBSUB_AUDIENCE=https://api.yourapp.com
+GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/path/to/service-account.json
 ```
 
 ---
 
-## 📘 API ENDPOINT SUMMARY
+## 9. API Endpoint Summary
 
-| Method | Endpoint                           | Auth           | Premium   |
-| ------ | ---------------------------------- | -------------- | --------- |
-| POST   | `/api/app/init`                    | No             | No        |
-| GET    | `/api/users/me`                    | Yes            | No        |
-| DELETE | `/api/users/me`                    | Yes            | No        |
-| GET    | `/api/users/me/tracked`            | Yes            | No        |
-| POST   | `/api/users/me/tracked`            | Yes            | No        |
-| DELETE | `/api/users/me/tracked/:assetCode` | Yes            | No        |
-| POST   | `/api/subscriptions/verify`        | Yes            | No        |
-| POST   | `/api/subscriptions/restore`       | Yes            | No        |
-| POST   | `/api/webhooks/apple`              | Apple JWS      | No        |
-| POST   | `/api/webhooks/google`             | Google Pub/Sub | No        |
-| GET    | `/api/config/subscription`         | No             | No        |
-| GET    | `/api/config/default-assets`       | No             | No        |
-| GET    | `/api/currencies`                  | Yes            | No        |
-| GET    | `/api/commodities`                 | Yes            | No        |
-| GET    | `/api/banks`                       | Yes            | No        |
-| GET    | `/api/rates/free-market`           | Yes            | No        |
-| GET    | `/api/rates/free-market/:code`     | Yes            | No        |
-| GET    | `/api/rates/banks/:code`           | Yes            | **Yes**   |
-| GET    | `/api/rates/banks/:code/:bankCode` | Yes            | **Yes**   |
-| POST   | `/api/converter/calculate`         | Yes            | Partial\* |
-| POST   | `/api/internal/scraper/run`        | Internal       | No        |
-| GET    | `/api/internal/scraper/health`     | Internal       | No        |
+| Method | Endpoint                             | Auth           | Premium   | Module       |
+| ------ | ------------------------------------ | -------------- | --------- | ------------ |
+| POST   | `/api/app/init`                      | No             | No        | App          |
+| GET    | `/api/users/me`                      | Yes            | No        | User         |
+| DELETE | `/api/users/me`                      | Yes            | No        | User         |
+| GET    | `/api/users/me/tracked`              | Yes            | No        | User         |
+| POST   | `/api/users/me/tracked`              | Yes            | No        | User         |
+| DELETE | `/api/users/me/tracked/:assetCode`   | Yes            | No        | User         |
+| POST   | `/api/subscriptions/verify`          | Yes            | No        | Subscription |
+| POST   | `/api/subscriptions/restore`         | Yes            | No        | Subscription |
+| POST   | `/api/webhooks/apple`                | Apple JWS      | No        | Subscription |
+| POST   | `/api/webhooks/google`               | Google Pub/Sub | No        | Subscription |
+| GET    | `/api/config/subscription`           | No             | No        | Config       |
+| GET    | `/api/config/default-assets`         | No             | No        | Config       |
+| GET    | `/api/currencies`                    | Yes            | No        | Rate         |
+| GET    | `/api/commodities`                   | Yes            | No        | Rate         |
+| GET    | `/api/banks`                         | Yes            | No        | Rate         |
+| GET    | `/api/rates/free-market`             | Yes            | No        | Rate         |
+| GET    | `/api/rates/free-market/:code`       | Yes            | No        | Rate         |
+| GET    | `/api/rates/banks/:code`             | Yes            | **Yes**   | Rate         |
+| GET    | `/api/rates/banks/:code/:bankCode`   | Yes            | **Yes**   | Rate         |
+| POST   | `/api/converter/calculate`           | Yes            | Partial\* | Rate         |
+| POST   | `/api/internal/rates/scraper/run`    | Internal       | No        | Rate         |
+| GET    | `/api/internal/rates/scraper/health` | Internal       | No        | Rate         |
+| GET    | `/health`                            | No             | No        | System       |
+| GET    | `/ready`                             | No             | No        | System       |
 
 \* `includeBanks: true` requires premium
+
+---
+
+## 10. Shared Infrastructure Requirements
+
+This section identifies shared components that need to be implemented in the Tenzel framework's shared kernel before building the modules.
+
+### 10.1 Required Shared Exceptions
+
+The following custom exceptions need to be added to `src/shared/exceptions/`:
+
+| Exception                  | HTTP Status | Required For                                        |
+| -------------------------- | ----------- | --------------------------------------------------- |
+| `UnauthorizedException`    | 401         | Auth middleware (UNAUTHORIZED, INVALID_TOKEN)       |
+| `ForbiddenException`       | 403         | Premium guard (PREMIUM_REQUIRED)                    |
+| `NotFoundException`        | 404         | All modules (USER_NOT_FOUND, ASSET_NOT_FOUND, etc.) |
+| `BadRequestException`      | 400         | Validation (INVALID_RECEIPT, VALIDATION_ERROR)      |
+| `ConflictException`        | 409         | Duplicate entries                                   |
+| `TooManyRequestsException` | 429         | Rate limiting                                       |
+
+> **Note:** Check if these already exist in Tenzel's `src/shared/exceptions/` - some may already be implemented.
+
+### 10.2 Required Middleware
+
+**Auth Middleware (`src/shared/middleware/auth.middleware.ts`):**
+
+```typescript
+// JWT token validation
+// Extract user from token
+// Attach to request context
+// Handle UNAUTHORIZED and INVALID_TOKEN errors
+```
+
+**Premium Guard (`src/shared/middleware/premium.guard.ts`):**
+
+```typescript
+// Check user.accountTier === 'premium'
+// Return 403 PREMIUM_REQUIRED if not
+```
+
+**Rate Limit Middleware (`src/shared/middleware/rate-limit.middleware.ts`):**
+
+```typescript
+// Per-endpoint rate limiting
+// Return 429 with retryAfter
+```
+
+### 10.3 Required Shared Infrastructure
+
+**JWT Service (`src/shared/infrastructure/jwt/`):**
+
+```typescript
+interface JwtService {
+  sign(payload: { userId: string; deviceId: string }): string;
+  verify(token: string): JwtPayload | null;
+}
+```
+
+**Store Validation Services:**
+
+```typescript
+// Apple receipt validation
+interface AppleStoreService {
+  validateReceipt(receipt: string): Promise<AppleReceiptInfo>;
+  validateWebhookSignature(signedPayload: string): Promise<AppleNotificationPayload>;
+}
+
+// Google receipt validation
+interface GoogleStoreService {
+  validateReceipt(receipt: string, subscriptionId: string): Promise<GoogleSubscriptionInfo>;
+  validatePubSubToken(token: string): Promise<boolean>;
+}
+```
+
+### 10.4 Required i18n Keys
+
+Add to `src/shared/i18n/locales/`:
+
+**English (en.json):**
+
+```json
+{
+  "error.unauthorized": "Authentication required",
+  "error.invalid_token": "Invalid or expired token",
+  "error.premium_required": "This feature requires premium subscription",
+  "error.user_not_found": "User not found",
+  "error.asset_not_found": "Asset not found",
+  "error.bank_not_found": "Bank not found",
+  "error.invalid_receipt": "Invalid purchase receipt",
+  "error.subscription_not_found": "No subscription found",
+  "error.validation_error": "Validation failed",
+  "error.rate_limit_exceeded": "Too many requests. Please try again later."
+}
+```
+
+**Turkish (tr.json):**
+
+```json
+{
+  "error.unauthorized": "Kimlik doğrulama gerekli",
+  "error.invalid_token": "Geçersiz veya süresi dolmuş token",
+  "error.premium_required": "Bu özellik premium üyelik gerektirir",
+  "error.user_not_found": "Kullanıcı bulunamadı",
+  "error.asset_not_found": "Varlık bulunamadı",
+  "error.bank_not_found": "Banka bulunamadı",
+  "error.invalid_receipt": "Geçersiz satın alma makbuzu",
+  "error.subscription_not_found": "Abonelik bulunamadı",
+  "error.validation_error": "Doğrulama hatası",
+  "error.rate_limit_exceeded": "Çok fazla istek. Lütfen daha sonra tekrar deneyin."
+}
+```
+
+### 10.5 Required Cron Job Infrastructure
+
+**Scheduled Tasks Service:**
+
+```typescript
+// For subscription expiry check (hourly)
+// For scraper execution (every minute)
+// For soft-deleted user cleanup (daily)
+```
+
+### 10.6 Database Schema Additions
+
+**Common Columns Mixin:**
+
+```typescript
+// All tables should include:
+{
+  id: serial('id').primaryKey(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),  // For soft delete
+}
+```
+
+### 10.7 Module Dependency Map
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     MODULE DEPENDENCIES                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Shared Kernel (implement first)                                │
+│  ├── Exceptions                                                 │
+│  ├── Auth Middleware                                            │
+│  ├── Premium Guard                                              │
+│  ├── Rate Limit Middleware                                      │
+│  ├── JWT Service                                                │
+│  └── i18n Keys                                                  │
+│                                                                  │
+│  Config Module (no dependencies)                                │
+│  └── Standalone, can be implemented first                       │
+│                                                                  │
+│  User Module                                                     │
+│  ├── Depends on: Auth Middleware, JWT Service                   │
+│  └── Required by: Subscription, Rate, App                       │
+│                                                                  │
+│  Subscription Module                                             │
+│  ├── Depends on: User Module, Auth Middleware                   │
+│  ├── Requires: Store Validation Services                        │
+│  └── Required by: App Module                                    │
+│                                                                  │
+│  Rate Module                                                     │
+│  ├── Depends on: User Module, Auth Middleware, Premium Guard    │
+│  └── Requires: Scraper Service, Cron Infrastructure            │
+│                                                                  │
+│  App Module                                                      │
+│  ├── Depends on: User, Subscription, Config, Rate               │
+│  └── Aggregates all modules for app/init                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Appendix A: Business Rules Summary
+
+| Rule                  | Description                                 |
+| --------------------- | ------------------------------------------- |
+| Current Price         | = sellingPrice                              |
+| Daily Change          | = current - previousClose                   |
+| Buy Transaction       | Show bank's sellingPrice                    |
+| Sell Transaction      | Show bank's buyingPrice                     |
+| Best Rate (Buy)       | Lowest sellingPrice                         |
+| Best Rate (Sell)      | Highest buyingPrice                         |
+| Search                | Case-insensitive, min 2 chars               |
+| Stale Data            | > 5 minutes since last update               |
+| Token Expiry          | Never expires, invalidated on user deletion |
+| Soft Delete Retention | 90 days for premium users                   |
+| Market Hours          | Weekdays 09:00-18:00 Turkey Time            |
+
+---
+
+## Appendix B: Environment Variables
+
+```bash
+# Application
+NODE_ENV=production
+PORT=3000
+DEFAULT_LOCALE=tr
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/muhasebat
+DATABASE_POOL_MAX=10
+
+# Security
+JWT_SECRET=your-32-character-minimum-secret-key
+
+# Apple
+APPLE_BUNDLE_ID=com.yourcompany.muhasebat
+APPLE_SHARED_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Google
+GOOGLE_PACKAGE_NAME=com.yourcompany.muhasebat
+GOOGLE_PUBSUB_AUDIENCE=https://api.yourapp.com
+GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/path/to/service-account.json
+
+# Scraper
+SCRAPER_SOURCE_URL=https://canlidoviz.com
+SCRAPER_INTERVAL_MS=60000
+
+# Observability (Optional)
+OTEL_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+---
+
+**Document Version:** 3.0  
+**Last Updated:** December 2024
