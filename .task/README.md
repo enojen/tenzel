@@ -23,7 +23,7 @@
 | MHSB-004 | Rate Limit Middleware                    | INFRA    | completed | -        | -      |
 | MHSB-005 | JWT Service                              | INFRA    | completed | -        | -      |
 | MHSB-006 | i18n Error Keys                          | INFRA    | completed | -        | -      |
-| MHSB-007 | Cron Job Infrastructure                  | INFRA    | completed | -        | -      |
+| MHSB-007 | Cron Job Infrastructure                  | INFRA    | completed | -        | 251.5K |
 | MHSB-010 | Config Module                            | API      | pending   | -        | -      |
 | MHSB-020 | User Domain Layer                        | DOMAIN   | pending   | -        | -      |
 | MHSB-021 | User Database Layer                      | DB       | pending   | -        | -      |

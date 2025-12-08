@@ -2,10 +2,10 @@ import type {
   FindAllOptions,
   UserRepository,
   UserSortField,
-} from '@/modules/user/domain/repositories/user.repository';
+} from '@/modules/_user-example/domain/repositories/user.repository';
 import type { PaginatedResult, PaginationParams, SortOption } from '@/shared/types';
 
-import { User } from '@/modules/user/domain/entities/user.entity';
+import { User } from '@/modules/_user-example/domain/entities/user.entity';
 import { buildPaginationLinks, buildPaginationMeta } from '@/shared/types';
 
 export class InMemoryUserRepository implements UserRepository {

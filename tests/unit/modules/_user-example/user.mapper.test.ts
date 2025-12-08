@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
-import type { DbUser } from '@/modules/user/infrastructure/persistence/user.db-schemas';
+import type { DbUser } from '@/modules/_user-example/infrastructure/persistence/user.db-schemas';
 
-import { userMapper } from '@/modules/user/application/dto/user.mapper';
-import { User } from '@/modules/user/domain/entities/user.entity';
+import { userMapper } from '@/modules/_user-example/application/dto/user.mapper';
+import { User } from '@/modules/_user-example/domain/entities/user.entity';
 
 describe('userMapper', () => {
   const mockUserProps = {

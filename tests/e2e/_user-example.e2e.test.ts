@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { Elysia } from 'elysia';
 
-import { InMemoryUserRepository } from '../mocks/in-memory-user.repository';
+import { InMemoryUserRepository } from '../mocks/in-memory-_user-example.repository';
 import { mockPasswordHasher } from '../mocks/mock-password-hasher';
 
-import type { UserResponse } from '@/modules/user/api/user.schemas';
+import type { UserResponse } from '@/modules/_user-example/api/user.schemas';
 import type { ErrorResponse } from '@/shared/openapi/error.schema';
 
-import { createUserModule } from '@/modules/user';
+import { createUserModule } from '@/modules/_user-example';
 import { BaseException } from '@/shared/exceptions/base.exception';
 
 function createTestApp(userRepo: InMemoryUserRepository) {

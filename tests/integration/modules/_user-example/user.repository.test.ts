@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import { InMemoryUserRepository } from '../../../mocks/in-memory-user.repository';
+import { InMemoryUserRepository } from '../../../mocks/in-memory-_user-example.repository';
 
-import { User } from '@/modules/user/domain/entities/user.entity';
+import { User } from '@/modules/_user-example/domain/entities/user.entity';
 
 describe('UserRepository (InMemory)', () => {
   let repository: InMemoryUserRepository;

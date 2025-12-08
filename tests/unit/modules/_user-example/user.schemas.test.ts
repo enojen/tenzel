@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { createUserRequestSchema, userResponseSchema } from '@/modules/user/api/user.schemas';
-import { USER_ROLES } from '@/modules/user/domain/value-objects/user-role.vo';
+import {
+  createUserRequestSchema,
+  userResponseSchema,
+} from '@/modules/_user-example/api/user.schemas';
+import { USER_ROLES } from '@/modules/_user-example/domain/value-objects/user-role.vo';
 
 describe('createUserRequestSchema', () => {
   const validInput = {

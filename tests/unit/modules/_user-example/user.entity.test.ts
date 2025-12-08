@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { User, type UserProps } from '@/modules/user/domain/entities/user.entity';
+import { User, type UserProps } from '@/modules/_user-example/domain/entities/user.entity';
 
 const createUserProps = (overrides: Partial<UserProps> = {}): UserProps => ({
   id: 1,

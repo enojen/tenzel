@@ -2,7 +2,7 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
-import { createUserModule, DrizzleUserRepository } from './modules/user';
+import { createUserModule, DrizzleUserRepository } from './modules/_user-example';
 import { exceptionHandler } from './shared/exceptions';
 import { checkDatabaseHealth, db, passwordHasher } from './shared/infrastructure';
 import { requestIdMiddleware } from './shared/middleware';
