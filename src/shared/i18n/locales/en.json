@@ -10,5 +10,9 @@
   "errors.invalid_token": "Invalid or expired token",
   "errors.premium_required": "Premium subscription required",
   "errors.user.not_found": "User not found",
-  "errors.user.already_exists": "User with email {email} already exists"
+  "errors.user.already_exists": "User with email {email} already exists",
+  "errors.asset.not_found": "Asset not found",
+  "errors.bank.not_found": "Bank not found",
+  "errors.receipt.invalid": "Invalid purchase receipt",
+  "errors.subscription.not_found": "No subscription found"
 }

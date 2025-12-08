@@ -10,5 +10,9 @@
   "errors.invalid_token": "Gecersiz veya suresi dolmus token",
   "errors.premium_required": "Premium abonelik gerekli",
   "errors.user.not_found": "Kullanici bulunamadi",
-  "errors.user.already_exists": "{email} adresine sahip kullanici zaten mevcut"
+  "errors.user.already_exists": "{email} adresine sahip kullanici zaten mevcut",
+  "errors.asset.not_found": "Varlik bulunamadi",
+  "errors.bank.not_found": "Banka bulunamadi",
+  "errors.receipt.invalid": "Gecersiz satin alma makbuzu",
+  "errors.subscription.not_found": "Abonelik bulunamadi"
 }
