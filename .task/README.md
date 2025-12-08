@@ -4,9 +4,9 @@
 
 | Status      | Count |
 | ----------- | ----- |
-| Completed   | 8     |
-| In Progress | 0     |
-| Pending     | 26    |
+| Completed   | 14    |
+| In Progress | 1     |
+| Pending     | 20    |
 
 **Total Duration:** -  
 **Total Tokens:** 381.5K
@@ -24,13 +24,14 @@
 | MHSB-005 | JWT Service                              | INFRA    | completed | -        | -      |
 | MHSB-006 | i18n Error Keys                          | INFRA    | completed | -        | -      |
 | MHSB-007 | Cron Job Infrastructure                  | INFRA    | completed | -        | 251.5K |
-| MHSB-010 | Config Module                            | API      | pending   | -        | -      |
-| MHSB-020 | User Domain Layer                        | DOMAIN   | pending   | -        | -      |
-| MHSB-021 | User Database Layer                      | DB       | pending   | -        | -      |
-| MHSB-022 | User Repository                          | REPO     | pending   | -        | -      |
-| MHSB-023 | User API - Me Endpoints                  | API      | pending   | -        | -      |
-| MHSB-024 | User API - Tracked Assets                | API      | pending   | -        | -      |
-| MHSB-025 | User Module Tests                        | TEST     | pending   | -        | -      |
+| MHSB-010 | Config Module                            | API      | completed | -        | -      |
+| MHSB-020 | User Domain Layer                        | DOMAIN   | completed | -        | -      |
+| MHSB-021 | User Database Layer                      | DB       | completed | -        | -      |
+| MHSB-022 | User Repository                          | REPO     | completed | -        | 270.5K |
+| MHSB-023 | User API - Me Endpoints                  | API      | completed | -        | 1.843M |
+| MHSB-024 | User API - Tracked Assets                | API      | completed | -        | -      |
+| MHSB-025 | User Module Tests                        | TEST     | completed | -        | -      |
+| MHSB-026 | User Module Type Refactoring             | REFACTOR | completed | 787K     | -      |
 | MHSB-030 | Subscription Domain Layer                | DOMAIN   | pending   | -        | -      |
 | MHSB-031 | Subscription Database Layer              | DB       | pending   | -        | -      |
 | MHSB-032 | Subscription Repository & Store Services | REPO     | pending   | -        | -      |

@@ -5,7 +5,7 @@ export { ACCOUNT_TIERS, type AccountTier } from './value-objects';
 export { ASSET_TYPES, type AssetType } from './value-objects';
 
 export type {
-  IUserRepository,
+  UserRepository,
   CreateUserDto,
   UpdateUserDto,
   AddTrackedAssetDto,

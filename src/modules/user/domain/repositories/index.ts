@@ -1,6 +1,6 @@
 export type {
-  IUserRepository,
+  UserRepository,
   CreateUserDto,
   UpdateUserDto,
   AddTrackedAssetDto,
-} from './user.repository.interface';
+} from './user.repository';

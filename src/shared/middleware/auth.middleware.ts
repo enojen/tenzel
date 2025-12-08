@@ -25,8 +25,9 @@ async function getUserById(userId: string): Promise<AuthenticatedUser | null> {
   };
 }
 
-export const authMiddleware = (app: Elysia) =>
-  app.derive(async ({ request }): Promise<{ user: AuthenticatedUser }> => {
+export const authMiddleware = new Elysia({ name: 'auth' }).derive(
+  { as: 'global' },
+  async ({ request }): Promise<{ user: AuthenticatedUser }> => {
     const authHeader = request.headers.get('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -49,4 +50,5 @@ export const authMiddleware = (app: Elysia) =>
     user.deviceId = payload.deviceId;
 
     return { user };
-  });
+  },
+);

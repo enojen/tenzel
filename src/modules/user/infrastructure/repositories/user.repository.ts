@@ -6,11 +6,11 @@ import { trackedAssetsTable, type DbTrackedAsset } from '../database/tables/trac
 import { usersTable, type DbUser } from '../database/tables/users.table';
 
 import type {
-  IUserRepository,
+  UserRepository as IUserRepository,
   CreateUserDto,
   UpdateUserDto,
   AddTrackedAssetDto,
-} from '../../domain/repositories/user.repository.interface';
+} from '../../domain/repositories/user.repository';
 import type { AssetType } from '../../domain/value-objects/asset-type.vo';
 
 import { db } from '@/shared/infrastructure/database/drizzle';

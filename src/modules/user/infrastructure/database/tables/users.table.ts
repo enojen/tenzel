@@ -1,6 +1,8 @@
 import { pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
-export const accountTierEnum = pgEnum('account_tier', ['free', 'premium']);
+import { ACCOUNT_TIERS } from '../../../domain/value-objects/account-tier.vo';
+
+export const accountTierEnum = pgEnum('account_tier', [ACCOUNT_TIERS.FREE, ACCOUNT_TIERS.PREMIUM]);
 
 export const usersTable = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),

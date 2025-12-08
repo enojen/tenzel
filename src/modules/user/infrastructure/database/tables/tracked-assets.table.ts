@@ -1,8 +1,10 @@
 import { pgEnum, pgTable, serial, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core';
 
+import { ASSET_TYPES } from '../../../domain/value-objects/asset-type.vo';
+
 import { usersTable } from './users.table';
 
-export const assetTypeEnum = pgEnum('asset_type', ['currency', 'commodity']);
+export const assetTypeEnum = pgEnum('asset_type', [ASSET_TYPES.CURRENCY, ASSET_TYPES.COMMODITY]);
 
 export const trackedAssetsTable = pgTable(
   'tracked_assets',

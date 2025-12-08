@@ -1,6 +1,8 @@
+import type { AccountTier } from '@/modules/user/domain/value-objects/account-tier.vo';
+
 export interface AuthenticatedUser {
   id: string;
   deviceId: string;
-  accountTier: 'free' | 'premium';
+  accountTier: AccountTier;
   subscriptionExpiresAt: string | null;
 }

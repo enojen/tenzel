@@ -19,7 +19,7 @@ export interface AddTrackedAssetDto {
   assetCode: string;
 }
 
-export interface IUserRepository {
+export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByDeviceId(deviceId: string): Promise<User | null>;
   create(data: CreateUserDto): Promise<User>;
