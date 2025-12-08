@@ -1,5 +1,9 @@
+import {
+  SUBSCRIPTION_STATUSES,
+  type SubscriptionStatus,
+} from '../value-objects/subscription-status.vo';
+
 import type { SubscriptionPlatform } from '../value-objects/subscription-platform.vo';
-import type { SubscriptionStatus } from '../value-objects/subscription-status.vo';
 
 import { AggregateRoot, type EntityProps } from '@/shared/domain';
 
@@ -33,23 +37,25 @@ export class Subscription extends AggregateRoot<SubscriptionProps> {
   }
 
   get isActive(): boolean {
-    return this.props.status === 'active' && this.props.expiresAt > new Date();
+    return this.props.status === SUBSCRIPTION_STATUSES.ACTIVE && this.props.expiresAt > new Date();
   }
 
   get isExpired(): boolean {
-    return this.props.status === 'expired' || this.props.expiresAt <= new Date();
+    return (
+      this.props.status === SUBSCRIPTION_STATUSES.EXPIRED || this.props.expiresAt <= new Date()
+    );
   }
 
   get isInGracePeriod(): boolean {
-    return this.props.status === 'grace_period';
+    return this.props.status === SUBSCRIPTION_STATUSES.GRACE_PERIOD;
   }
 
   get isCanceled(): boolean {
-    return this.props.status === 'canceled';
+    return this.props.status === SUBSCRIPTION_STATUSES.CANCELED;
   }
 
   activate(expiresAt?: Date): void {
-    this.props.status = 'active';
+    this.props.status = SUBSCRIPTION_STATUSES.ACTIVE;
     if (expiresAt) {
       this.props.expiresAt = expiresAt;
     }
@@ -57,17 +63,17 @@ export class Subscription extends AggregateRoot<SubscriptionProps> {
   }
 
   cancel(): void {
-    this.props.status = 'canceled';
+    this.props.status = SUBSCRIPTION_STATUSES.CANCELED;
     this.props.updatedAt = new Date();
   }
 
   expire(): void {
-    this.props.status = 'expired';
+    this.props.status = SUBSCRIPTION_STATUSES.EXPIRED;
     this.props.updatedAt = new Date();
   }
 
   enterGracePeriod(): void {
-    this.props.status = 'grace_period';
+    this.props.status = SUBSCRIPTION_STATUSES.GRACE_PERIOD;
     this.props.updatedAt = new Date();
   }
 

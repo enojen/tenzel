@@ -1,3 +1,4 @@
+import type { WebhookEventType } from '../value-objects/webhook-event-type.vo';
 import type { WebhookPlatform } from '../value-objects/webhook-platform.vo';
 
 import { Entity, type EntityProps } from '@/shared/domain';
@@ -5,7 +6,7 @@ import { Entity, type EntityProps } from '@/shared/domain';
 export interface WebhookLogProps extends EntityProps {
   eventId: string;
   platform: WebhookPlatform;
-  eventType: string;
+  eventType: WebhookEventType;
   billingKey: string;
   processedAt: Date;
   payload: string;
@@ -20,7 +21,7 @@ export class WebhookLog extends Entity<WebhookLogProps> {
     return this.props.platform;
   }
 
-  get eventType(): string {
+  get eventType(): WebhookEventType {
     return this.props.eventType;
   }
 

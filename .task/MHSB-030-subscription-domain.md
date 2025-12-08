@@ -81,6 +81,10 @@ interface ISubscriptionRepository {
 - [ ] Repository interface defined
 - [ ] Lint & typecheck pass
 
+## Notes
+
+> **AI Implementation Gap:** The initial implementation used raw string literals for status comparisons in `subscription.entity.ts` instead of using the defined enum constants (`SUBSCRIPTION_STATUSES.ACTIVE`, etc.). Additionally, `eventType` in `webhook-log.entity.ts` was left as plain `string` type instead of creating a proper `WebhookEventType` value object enum for type safety.
+
 ## On Completion
 
 ```bash
