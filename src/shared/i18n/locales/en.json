@@ -7,6 +7,8 @@
   "errors.conflict": "Resource already exists",
   "errors.rate_limit_exceeded": "Too many requests, please try again later",
   "errors.validation": "Validation failed",
+  "errors.invalid_token": "Invalid or expired token",
+  "errors.premium_required": "Premium subscription required",
   "errors.user.not_found": "User not found",
   "errors.user.already_exists": "User with email {email} already exists"
 }
