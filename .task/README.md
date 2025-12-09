@@ -6,7 +6,7 @@
 | ----------- | ----- |
 | Completed   | 14    |
 | In Progress | 1     |
-| Pending     | 20    |
+| Pending     | 26    |
 
 **Total Duration:** -  
 **Total Tokens:** 381.5K
@@ -52,6 +52,12 @@
 | MHSB-051 | App Module Tests                         | TEST     | pending   | -        | -               |
 | MHSB-060 | Database Migrations                      | DB       | pending   | -        | -               |
 | MHSB-061 | Module Registration                      | INFRA    | pending   | -        | -               |
+| MHSB-070 | User Application Layer Unit Tests        | TEST     | pending   | -        | -               |
+| MHSB-071 | User Infrastructure Integration Tests    | TEST     | pending   | -        | -               |
+| MHSB-072 | User DTO Mapper Tests                    | TEST     | pending   | -        | -               |
+| MHSB-073 | TrackedAsset Entity Tests                | TEST     | pending   | -        | -               |
+| MHSB-074 | User Transaction Management              | REFACTOR | pending   | -        | -               |
+| MHSB-075 | User Domain Events Enhancement           | REFACTOR | pending   | -        | -               |
 
 ---
 
