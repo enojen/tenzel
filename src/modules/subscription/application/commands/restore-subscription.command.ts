@@ -14,8 +14,8 @@ export interface RestoreSubscriptionDeps {
   userId: string;
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService: AppleStoreService;
-  googleStoreService: GoogleStoreService;
+  appleStoreService?: AppleStoreService;
+  googleStoreService?: GoogleStoreService;
 }
 
 export async function restoreSubscriptionCommand(
@@ -37,12 +37,20 @@ export async function restoreSubscriptionCommand(
   if (input.receipt) {
     try {
       if (input.platform === SUBSCRIPTION_PLATFORMS.IOS) {
+        if (!appleStoreService) {
+          throw new Error('Apple Store integration is not configured');
+        }
+
         const transactionInfo = await appleStoreService.validateReceipt(input.receipt);
         if (transactionInfo.expiresDate) {
           expiresAt = new Date(transactionInfo.expiresDate);
           isActive = expiresAt > new Date();
         }
       } else {
+        if (!googleStoreService) {
+          throw new Error('Google Play integration is not configured');
+        }
+
         const subscriptionData = await googleStoreService.validateReceipt(input.billingKey);
         const lineItem = subscriptionData.lineItems?.[0];
         if (lineItem?.expiryTime) {

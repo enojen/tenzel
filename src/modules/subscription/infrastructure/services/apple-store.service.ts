@@ -10,6 +10,7 @@ import {
   type StatusResponse,
 } from '@apple/app-store-server-library';
 
+import { config } from '@/config';
 import { createModuleLogger } from '@/shared/logging';
 
 const logger = createModuleLogger('apple-store-service');
@@ -20,34 +21,30 @@ export class AppleStoreService {
   private receiptUtil = new ReceiptUtility();
 
   constructor() {
-    const env =
-      process.env.NODE_ENV === 'production' ? Environment.PRODUCTION : Environment.SANDBOX;
+    const env = config.app.isProduction ? Environment.PRODUCTION : Environment.SANDBOX;
 
-    const keyPath = process.env.APPLE_KEY_PATH;
-    const keyId = process.env.APPLE_KEY_ID;
-    const issuerId = process.env.APPLE_ISSUER_ID;
-    const bundleId = process.env.APPLE_BUNDLE_ID;
+    const { keyPath, keyId, issuerId, bundleId, rootCAG3Path, rootCAG2Path, appId } =
+      config.subscription.apple;
 
     if (!keyPath || !keyId || !issuerId || !bundleId) {
-      throw new Error('Missing required Apple configuration');
+      throw new Error(
+        'Apple Store integration is not configured. Please set APPLE_KEY_PATH, APPLE_KEY_ID, APPLE_ISSUER_ID, and APPLE_BUNDLE_ID in your environment variables.',
+      );
     }
 
     const encodedKey = readFileSync(keyPath, 'utf-8');
 
     this.client = new AppStoreServerAPIClient(encodedKey, keyId, issuerId, bundleId, env);
 
-    const rootCAG3Path = process.env.APPLE_ROOT_CA_G3_PATH;
-    const rootCAG2Path = process.env.APPLE_ROOT_CA_G2_PATH;
-
     if (!rootCAG3Path || !rootCAG2Path) {
-      throw new Error('Missing Apple Root CA certificate paths');
+      throw new Error(
+        'Apple Root CA certificate paths are not configured. Please set APPLE_ROOT_CA_G3_PATH and APPLE_ROOT_CA_G2_PATH in your environment variables.',
+      );
     }
 
     const appleRootCAs = [readFileSync(rootCAG3Path), readFileSync(rootCAG2Path)];
 
-    const appAppleId = process.env.APPLE_APP_ID ? Number(process.env.APPLE_APP_ID) : undefined;
-
-    this.verifier = new SignedDataVerifier(appleRootCAs, true, env, bundleId, appAppleId);
+    this.verifier = new SignedDataVerifier(appleRootCAs, true, env, bundleId, appId);
 
     logger.info({ environment: env }, 'AppleStoreService initialized');
   }

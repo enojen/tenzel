@@ -21,8 +21,8 @@ import { authMiddleware } from '@/shared/middleware';
 export interface SubscriptionControllerDeps {
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService: AppleStoreService;
-  googleStoreService: GoogleStoreService;
+  appleStoreService?: AppleStoreService;
+  googleStoreService?: GoogleStoreService;
 }
 
 export function subscriptionController(deps: SubscriptionControllerDeps) {

@@ -2,6 +2,14 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
+import { config } from './config';
+import {
+  AppleStoreService,
+  createWebhooksModule,
+  DrizzleSubscriptionRepository,
+  GoogleStoreService,
+} from './modules/subscription';
+import { DrizzleUserRepository } from './modules/user';
 import { exceptionHandler } from './shared/exceptions';
 import { checkDatabaseHealth } from './shared/infrastructure';
 import { requestIdMiddleware } from './shared/middleware';
@@ -24,6 +32,7 @@ export function createApp() {
           tags: [
             { name: 'Health', description: 'Health & readiness checks' },
             { name: 'System', description: 'System-level endpoints' },
+            { name: 'Webhooks', description: 'Webhook endpoints for external services' },
           ],
         },
       }),
@@ -82,7 +91,39 @@ export function createApp() {
           tags: ['Health'],
         },
       },
-    );
+    )
+    .group('/api', (api) => {
+      const subscriptionRepository = new DrizzleSubscriptionRepository();
+      const userRepository = new DrizzleUserRepository();
+
+      const appleConfig = config.subscription.apple;
+      const googleConfig = config.subscription.google;
+
+      const hasAppleConfig = !!(
+        appleConfig.keyPath &&
+        appleConfig.keyId &&
+        appleConfig.issuerId &&
+        appleConfig.bundleId
+      );
+      const hasGoogleConfig = !!(googleConfig.packageName && googleConfig.serviceAccountKeyPath);
+
+      const appleStoreService = hasAppleConfig ? new AppleStoreService() : undefined;
+      const googleStoreService = hasGoogleConfig ? new GoogleStoreService() : undefined;
+
+      // Only register webhooks module if at least one service is configured
+      if (appleStoreService || googleStoreService) {
+        return api.use(
+          createWebhooksModule({
+            subscriptionRepository,
+            userRepository,
+            appleStoreService,
+            googleStoreService,
+          }),
+        );
+      }
+
+      return api;
+    });
 
   return app;
 }

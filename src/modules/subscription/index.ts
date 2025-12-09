@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia';
 
 import { subscriptionController } from './api/subscription.controller';
+import { appleWebhookController } from './api/webhooks/apple-webhook.controller';
+import { googleWebhookController } from './api/webhooks/google-webhook.controller';
 
 import type { SubscriptionRepository } from './domain/repositories/subscription.repository.interface';
 import type { AppleStoreService } from './infrastructure/services/apple-store.service';
@@ -10,8 +12,8 @@ import type { UserRepository } from '../user/domain/repositories/user.repository
 export interface SubscriptionModuleDeps {
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService: AppleStoreService;
-  googleStoreService: GoogleStoreService;
+  appleStoreService?: AppleStoreService;
+  googleStoreService?: GoogleStoreService;
 }
 
 export function createSubscriptionModule(deps: SubscriptionModuleDeps) {
@@ -23,6 +25,43 @@ export function createSubscriptionModule(deps: SubscriptionModuleDeps) {
       googleStoreService: deps.googleStoreService,
     }),
   );
+}
+
+export interface WebhooksModuleDeps {
+  subscriptionRepository: SubscriptionRepository;
+  userRepository: UserRepository;
+  appleStoreService?: AppleStoreService;
+  googleStoreService?: GoogleStoreService;
+}
+
+export function createWebhooksModule(deps: WebhooksModuleDeps) {
+  const app = new Elysia({ prefix: '/webhooks', tags: ['Webhooks'] });
+
+  if (deps.appleStoreService) {
+    app.group('/apple', (group) =>
+      group.use(
+        appleWebhookController({
+          subscriptionRepository: deps.subscriptionRepository,
+          userRepository: deps.userRepository,
+          appleStoreService: deps.appleStoreService!,
+        }),
+      ),
+    );
+  }
+
+  if (deps.googleStoreService) {
+    app.group('/google', (group) =>
+      group.use(
+        googleWebhookController({
+          subscriptionRepository: deps.subscriptionRepository,
+          userRepository: deps.userRepository,
+          googleStoreService: deps.googleStoreService!,
+        }),
+      ),
+    );
+  }
+
+  return app;
 }
 
 export { Subscription, type SubscriptionProps } from './domain/entities/subscription.entity';

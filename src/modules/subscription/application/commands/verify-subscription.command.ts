@@ -14,8 +14,8 @@ export interface VerifySubscriptionDeps {
   userId: string;
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService: AppleStoreService;
-  googleStoreService: GoogleStoreService;
+  appleStoreService?: AppleStoreService;
+  googleStoreService?: GoogleStoreService;
 }
 
 export async function verifySubscriptionCommand(
@@ -29,6 +29,10 @@ export async function verifySubscriptionCommand(
 
   try {
     if (input.platform === SUBSCRIPTION_PLATFORMS.IOS) {
+      if (!appleStoreService) {
+        throw new Error('Apple Store integration is not configured');
+      }
+
       const transactionInfo = await appleStoreService.validateReceipt(input.receipt);
 
       if (!transactionInfo.expiresDate) {
@@ -37,6 +41,10 @@ export async function verifySubscriptionCommand(
 
       expiresAt = new Date(transactionInfo.expiresDate);
     } else {
+      if (!googleStoreService) {
+        throw new Error('Google Play integration is not configured');
+      }
+
       const subscriptionData = await googleStoreService.validateReceipt(input.billingKey);
 
       const lineItem = subscriptionData.lineItems?.[0];

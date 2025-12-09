@@ -24,6 +24,19 @@ export const envSchema = z.object({
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 
   DEFAULT_LOCALE: z.enum(LOCALES).default(DEFAULT_LOCALE),
+
+  // Apple Store Config (optional - only required if iOS is used)
+  APPLE_KEY_PATH: z.string().optional(),
+  APPLE_KEY_ID: z.string().optional(),
+  APPLE_ISSUER_ID: z.string().optional(),
+  APPLE_BUNDLE_ID: z.string().optional(),
+  APPLE_ROOT_CA_G3_PATH: z.string().optional(),
+  APPLE_ROOT_CA_G2_PATH: z.string().optional(),
+  APPLE_APP_ID: z.coerce.number().optional(),
+
+  // Google Play Config (optional - only required if Android is used)
+  GOOGLE_PACKAGE_NAME: z.string().optional(),
+  GOOGLE_SERVICE_ACCOUNT_KEY_PATH: z.string().optional(),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

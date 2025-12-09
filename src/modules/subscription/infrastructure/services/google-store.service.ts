@@ -1,6 +1,7 @@
 import { androidpublisher, androidpublisher_v3 } from '@googleapis/androidpublisher';
 import { JWT } from 'google-auth-library';
 
+import { config } from '@/config';
 import { createModuleLogger } from '@/shared/logging';
 
 const logger = createModuleLogger('google-store-service');
@@ -24,17 +25,18 @@ export class GoogleStoreService {
   private packageName: string;
 
   constructor() {
-    const packageName = process.env.GOOGLE_PACKAGE_NAME;
-    const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
+    const { packageName, serviceAccountKeyPath } = config.subscription.google;
 
-    if (!packageName || !keyPath) {
-      throw new Error('Missing required Google Play configuration');
+    if (!packageName || !serviceAccountKeyPath) {
+      throw new Error(
+        'Google Play integration is not configured. Please set GOOGLE_PACKAGE_NAME and GOOGLE_SERVICE_ACCOUNT_KEY_PATH in your environment variables.',
+      );
     }
 
     this.packageName = packageName;
 
     const auth = new JWT({
-      keyFile: keyPath,
+      keyFile: serviceAccountKeyPath,
       scopes: ['https://www.googleapis.com/auth/androidpublisher'],
     });
 

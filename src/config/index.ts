@@ -63,6 +63,22 @@ function buildConfig() {
     i18n: {
       defaultLocale: env.DEFAULT_LOCALE,
     },
+
+    subscription: {
+      apple: {
+        keyPath: env.APPLE_KEY_PATH,
+        keyId: env.APPLE_KEY_ID,
+        issuerId: env.APPLE_ISSUER_ID,
+        bundleId: env.APPLE_BUNDLE_ID,
+        rootCAG3Path: env.APPLE_ROOT_CA_G3_PATH,
+        rootCAG2Path: env.APPLE_ROOT_CA_G2_PATH,
+        appId: env.APPLE_APP_ID,
+      },
+      google: {
+        packageName: env.GOOGLE_PACKAGE_NAME,
+        serviceAccountKeyPath: env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
+      },
+    },
   };
 }
 
