@@ -1,11 +1,9 @@
-import { SUBSCRIPTION_PLATFORMS } from '../../domain/value-objects/subscription-platform.vo';
 import { SUBSCRIPTION_STATUSES } from '../../domain/value-objects/subscription-status.vo';
 import { NoActiveSubscriptionException, SubscriptionExpiredException } from '../../exceptions';
 
 import type { SubscriptionRepository } from '../../domain/repositories/subscription.repository.interface';
-import type { AppleStoreService } from '../../infrastructure/services/apple-store.service';
-import type { GoogleStoreService } from '../../infrastructure/services/google-store.service';
 import type { RestoreSubscriptionInput, RestoreSubscriptionResult } from '../dto/command-types';
+import type { SubscriptionValidatorRegistry } from '../validators/subscription-validator.registry';
 import type { UserRepository } from '@/modules/user/domain/repositories/user.repository';
 
 import { ACCOUNT_TIERS } from '@/modules/user/domain/value-objects/account-tier.vo';
@@ -14,16 +12,14 @@ export interface RestoreSubscriptionDeps {
   userId: string;
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService?: AppleStoreService;
-  googleStoreService?: GoogleStoreService;
+  validatorRegistry: SubscriptionValidatorRegistry;
 }
 
 export async function restoreSubscriptionCommand(
   input: RestoreSubscriptionInput,
   deps: RestoreSubscriptionDeps,
 ): Promise<RestoreSubscriptionResult> {
-  const { userId, subscriptionRepository, userRepository, appleStoreService, googleStoreService } =
-    deps;
+  const { userId, subscriptionRepository, userRepository, validatorRegistry } = deps;
 
   const existingSubscription = await subscriptionRepository.findByBillingKey(input.billingKey);
 
@@ -36,28 +32,15 @@ export async function restoreSubscriptionCommand(
 
   if (input.receipt) {
     try {
-      if (input.platform === SUBSCRIPTION_PLATFORMS.IOS) {
-        if (!appleStoreService) {
-          throw new Error('Apple Store integration is not configured');
-        }
+      const validator = validatorRegistry.get(input.platform);
 
-        const transactionInfo = await appleStoreService.validateReceipt(input.receipt);
-        if (transactionInfo.expiresDate) {
-          expiresAt = new Date(transactionInfo.expiresDate);
-          isActive = expiresAt > new Date();
-        }
-      } else {
-        if (!googleStoreService) {
-          throw new Error('Google Play integration is not configured');
-        }
+      const { expiresAt: validatedExpiresAt } = await validator.validateReceipt({
+        receipt: input.receipt,
+        billingKey: input.billingKey,
+      });
 
-        const subscriptionData = await googleStoreService.validateReceipt(input.billingKey);
-        const lineItem = subscriptionData.lineItems?.[0];
-        if (lineItem?.expiryTime) {
-          expiresAt = new Date(lineItem.expiryTime);
-          isActive = expiresAt > new Date();
-        }
-      }
+      expiresAt = validatedExpiresAt;
+      isActive = expiresAt > new Date();
     } catch (_error) {
       isActive = false;
     }

@@ -56,7 +56,7 @@ export class InMemoryUserRepository implements UserRepository {
       id: String(existing.id),
       deviceId: existing.deviceId,
       accountTier: data.accountTier ?? existing.accountTier,
-      subscriptionExpiresAt: data.subscriptionExpiresAt ?? existing.subscriptionExpiresAt,
+      subscriptionExpiresAt: existing.subscriptionExpiresAt,
       deletedAt: existing.deletedAt,
       createdAt: existing.createdAt,
       updatedAt: new Date(),

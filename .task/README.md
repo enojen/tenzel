@@ -4,9 +4,9 @@
 
 | Status      | Count |
 | ----------- | ----- |
-| Completed   | 14    |
-| In Progress | 1     |
-| Pending     | 26    |
+| Completed   | 15    |
+| In Progress | 0     |
+| Pending     | 32    |
 
 **Total Duration:** -  
 **Total Tokens:** 381.5K
@@ -37,8 +37,8 @@
 | MHSB-032 | Subscription Repository & Store Services | REPO     | completed | -        | 2M                     |
 | MHSB-033 | Subscription API Endpoints               | API      | completed | -        | -                      |
 | MHSB-034 | Subscription Webhooks                    | WEBHOOK  | completed | -        | 438.9K + 162K + 305.1K |
-| MHSB-035 | Subscription Expiry Job                  | JOB      | pending   | -        | -                      |
-| MHSB-036 | Subscription Module Tests                | TEST     | pending   | -        | -                      |
+| MHSB-035 | Subscription Expiry Job                  | JOB      | completed | -        | -                      |
+| MHSB-036 | Subscription Module Tests                | TEST     | pending   | -        | 548K                   |
 | MHSB-040 | Rate Domain Layer                        | DOMAIN   | pending   | -        | -                      |
 | MHSB-041 | Rate Database Layer                      | DB       | pending   | -        | -                      |
 | MHSB-042 | Rate Repository                          | REPO     | pending   | -        | -                      |
@@ -58,6 +58,12 @@
 | MHSB-073 | TrackedAsset Entity Tests                | TEST     | pending   | -        | -                      |
 | MHSB-074 | User Transaction Management              | REFACTOR | pending   | -        | -                      |
 | MHSB-075 | User Domain Events Enhancement           | REFACTOR | pending   | -        | -                      |
+| MHSB-076 | Subscription Transaction Management      | REFACTOR | pending   | -        | -                      |
+| MHSB-077 | Subscription Optional Dependencies       | REFACTOR | pending   | -        | -                      |
+| MHSB-078 | Subscription Domain Exceptions           | REFACTOR | pending   | -        | -                      |
+| MHSB-079 | Subscription Input Validation            | REFACTOR | pending   | -        | -                      |
+| MHSB-080 | Subscription Retry Mechanism             | FEATURE  | pending   | -        | -                      |
+| MHSB-081 | Subscription Event Sourcing              | FEATURE  | pending   | -        | -                      |
 
 ---
 

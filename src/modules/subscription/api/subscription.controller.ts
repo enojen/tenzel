@@ -11,9 +11,8 @@ import {
   restoreSubscriptionResponseSchema,
 } from './subscription.schemas';
 
+import type { SubscriptionValidatorRegistry } from '../application/validators/subscription-validator.registry';
 import type { SubscriptionRepository } from '../domain/repositories/subscription.repository.interface';
-import type { AppleStoreService } from '../infrastructure/services/apple-store.service';
-import type { GoogleStoreService } from '../infrastructure/services/google-store.service';
 import type { UserRepository } from '@/modules/user/domain/repositories/user.repository';
 
 import { authMiddleware } from '@/shared/middleware';
@@ -21,8 +20,7 @@ import { authMiddleware } from '@/shared/middleware';
 export interface SubscriptionControllerDeps {
   subscriptionRepository: SubscriptionRepository;
   userRepository: UserRepository;
-  appleStoreService?: AppleStoreService;
-  googleStoreService?: GoogleStoreService;
+  validatorRegistry: SubscriptionValidatorRegistry;
 }
 
 export function subscriptionController(deps: SubscriptionControllerDeps) {
@@ -42,8 +40,7 @@ export function subscriptionController(deps: SubscriptionControllerDeps) {
             userId: user.id,
             subscriptionRepository: deps.subscriptionRepository,
             userRepository: deps.userRepository,
-            appleStoreService: deps.appleStoreService,
-            googleStoreService: deps.googleStoreService,
+            validatorRegistry: deps.validatorRegistry,
           },
         );
 
@@ -79,8 +76,7 @@ export function subscriptionController(deps: SubscriptionControllerDeps) {
             userId: user.id,
             subscriptionRepository: deps.subscriptionRepository,
             userRepository: deps.userRepository,
-            appleStoreService: deps.appleStoreService,
-            googleStoreService: deps.googleStoreService,
+            validatorRegistry: deps.validatorRegistry,
           },
         );
 

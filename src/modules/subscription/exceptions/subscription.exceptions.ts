@@ -45,3 +45,9 @@ export class WebhookLogCreationFailedException extends InternalServerException {
     super('errors.subscription.webhook_log_creation_failed');
   }
 }
+
+export class PlatformNotSupportedException extends BadRequestException {
+  constructor(platform: string) {
+    super('errors.subscription.platform_not_supported', { platform });
+  }
+}

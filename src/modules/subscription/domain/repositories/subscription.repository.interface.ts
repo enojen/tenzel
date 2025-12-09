@@ -2,6 +2,7 @@ import type { Subscription } from '../entities/subscription.entity';
 import type { WebhookLog } from '../entities/webhook-log.entity';
 import type { SubscriptionPlatform } from '../value-objects/subscription-platform.vo';
 import type { SubscriptionStatus } from '../value-objects/subscription-status.vo';
+import type { WebhookEventType } from '../value-objects/webhook-event-type.vo';
 import type { WebhookPlatform } from '../value-objects/webhook-platform.vo';
 
 export interface CreateSubscriptionDto {
@@ -20,7 +21,7 @@ export interface UpdateSubscriptionDto {
 export interface CreateWebhookLogDto {
   eventId: string;
   platform: WebhookPlatform;
-  eventType: string;
+  eventType: WebhookEventType;
   billingKey: string;
   payload: string;
 }

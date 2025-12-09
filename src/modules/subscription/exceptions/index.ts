@@ -6,4 +6,5 @@ export {
   SubscriptionCreationFailedException,
   SubscriptionUpdateFailedException,
   WebhookLogCreationFailedException,
+  PlatformNotSupportedException,
 } from './subscription.exceptions';

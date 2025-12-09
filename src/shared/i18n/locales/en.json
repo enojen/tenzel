@@ -21,5 +21,6 @@
   "errors.subscription.no_active_subscription": "No active subscription found for this billing key",
   "errors.subscription.creation_failed": "Failed to create subscription",
   "errors.subscription.update_failed": "Failed to update subscription",
-  "errors.subscription.webhook_log_creation_failed": "Failed to log webhook event"
+  "errors.subscription.webhook_log_creation_failed": "Failed to log webhook event",
+  "errors.subscription.platform_not_supported": ""
 }

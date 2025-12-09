@@ -21,5 +21,6 @@
   "errors.subscription.no_active_subscription": "Bu fatura anahtari icin aktif abonelik bulunamadi",
   "errors.subscription.creation_failed": "Abonelik olusturulamadi",
   "errors.subscription.update_failed": "Abonelik guncellenemedi",
-  "errors.subscription.webhook_log_creation_failed": "Webhook etkinligi kaydedilemedi"
+  "errors.subscription.webhook_log_creation_failed": "Webhook etkinligi kaydedilemedi",
+  "errors.subscription.platform_not_supported": ""
 }

@@ -108,7 +108,7 @@ export function googleWebhookController(deps: GoogleWebhookControllerDeps) {
     {
       body: t.Object({
         message: t.Object({
-          data: t.String(),
+          data: t.Optional(t.String()),
           messageId: t.Optional(t.String()),
         }),
       }),
