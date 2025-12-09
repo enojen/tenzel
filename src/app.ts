@@ -55,6 +55,18 @@ export function createApp() {
       },
     )
     .get(
+      '/api/v1',
+      () => {
+        return { message: 'API v1 is up' };
+      },
+      {
+        detail: {
+          summary: 'API v1 info',
+          tags: ['System'],
+        },
+      },
+    )
+    .get(
       '/ready',
       async ({ set }) => {
         const dbHealthy = await checkDatabaseHealth();

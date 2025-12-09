@@ -9,10 +9,25 @@ import type {
   TrackedAssetsResponse,
   UserResponse,
 } from '@/modules/user/api/user.schemas';
+import type { AssetType } from '@/modules/user/domain/value-objects/asset-type.vo';
 import type { ErrorResponse } from '@/shared/openapi/error.schema';
 import type { AuthenticatedUser } from '@/shared/types/context';
 
-import { userController } from '@/modules/user';
+import {
+  addTrackedAssetRequestSchema,
+  addTrackedAssetResponseSchema,
+  deleteUserResponseSchema,
+  removeTrackedAssetQuerySchema,
+  removeTrackedAssetResponseSchema,
+  trackedAssetsResponseSchema,
+  userResponseSchema,
+} from '@/modules/user/api/user.schemas';
+import { addTrackedAssetCommand } from '@/modules/user/application/commands/add-tracked-asset.command';
+import { deleteUserCommand } from '@/modules/user/application/commands/delete-user.command';
+import { removeTrackedAssetCommand } from '@/modules/user/application/commands/remove-tracked-asset.command';
+import { userMapper } from '@/modules/user/application/dto/user.mapper';
+import { getCurrentUserQuery } from '@/modules/user/application/queries/get-current-user.query';
+import { getTrackedAssetsQuery } from '@/modules/user/application/queries/get-tracked-assets.query';
 import { UnauthorizedException } from '@/shared/exceptions';
 import { BaseException } from '@/shared/exceptions/base.exception';
 import { jwtService } from '@/shared/infrastructure/jwt';
@@ -54,7 +69,7 @@ function createTestApp(userRepo: InMemoryUserRepository) {
   const mockAuth = createMockAuthMiddleware(userRepo);
 
   return new Elysia()
-    .onError(({ error, set }) => {
+    .onError(({ error, set, code }) => {
       if (error instanceof BaseException) {
         set.status = error.statusCode;
         return {
@@ -65,9 +80,119 @@ function createTestApp(userRepo: InMemoryUserRepository) {
           },
         };
       }
+
+      if (code === 'VALIDATION') {
+        set.status = 422;
+        return {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed',
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+
+      set.status = 500;
+      return {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          timestamp: new Date().toISOString(),
+        },
+      };
     })
     .group('/api/users', (api) => {
-      return api.use(mockAuth).use(userController({ userRepository: userRepo }));
+      return api
+        .use(mockAuth)
+        .derive(({ user }) => ({ user }))
+        .get(
+          '/me',
+          async ({ user }) => {
+            const result = await getCurrentUserQuery(user.id, {
+              userRepository: userRepo,
+            });
+
+            return { user: userMapper.toUserResponse(result) };
+          },
+          {
+            response: {
+              200: userResponseSchema,
+            },
+          },
+        )
+        .delete(
+          '/me',
+          async ({ user }) => {
+            await deleteUserCommand(user.id, {
+              userRepository: userRepo,
+            });
+
+            return { success: true as const };
+          },
+          {
+            response: {
+              200: deleteUserResponseSchema,
+            },
+          },
+        )
+        .get(
+          '/me/tracked',
+          async ({ user }) => {
+            const assets = await getTrackedAssetsQuery(user.id, {
+              userRepository: userRepo,
+            });
+
+            return { assets: userMapper.toTrackedAssetsResponse(assets) };
+          },
+          {
+            response: {
+              200: trackedAssetsResponseSchema,
+            },
+          },
+        )
+        .post(
+          '/me/tracked',
+          async ({ user, body }) => {
+            const assets = await addTrackedAssetCommand(
+              user.id,
+              {
+                assetType: body.assetType as AssetType,
+                assetCode: body.assetCode,
+              },
+              { userRepository: userRepo },
+            );
+
+            return {
+              success: true as const,
+              assets: userMapper.toTrackedAssetsResponse(assets),
+            };
+          },
+          {
+            body: addTrackedAssetRequestSchema,
+            response: {
+              200: addTrackedAssetResponseSchema,
+            },
+          },
+        )
+        .delete(
+          '/me/tracked/:assetCode',
+          async ({ user, params, query }) => {
+            const assets = await removeTrackedAssetCommand(user.id, params.assetCode, query.type, {
+              userRepository: userRepo,
+            });
+
+            return {
+              success: true as const,
+              assets: userMapper.toTrackedAssetsResponse(assets),
+            };
+          },
+          {
+            query: removeTrackedAssetQuerySchema,
+            response: {
+              200: removeTrackedAssetResponseSchema,
+            },
+          },
+        );
     });
 }
 
