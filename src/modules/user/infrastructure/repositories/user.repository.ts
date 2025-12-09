@@ -2,6 +2,7 @@ import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
 import { TrackedAsset } from '../../domain/entities/tracked-asset.entity';
 import { User } from '../../domain/entities/user.entity';
+import { UserCreationFailedException, UserUpdateFailedException } from '../../exceptions';
 import { trackedAssetsTable, type DbTrackedAsset } from '../database/tables/tracked-assets.table';
 import { usersTable, type DbUser } from '../database/tables/users.table';
 
@@ -49,7 +50,7 @@ export class UserRepository implements IUserRepository {
       .returning();
 
     if (!created) {
-      throw new Error('Failed to create user');
+      throw new UserCreationFailedException();
     }
 
     return this.toDomain(created);
@@ -74,7 +75,7 @@ export class UserRepository implements IUserRepository {
       .returning();
 
     if (!updated) {
-      throw new Error('Failed to update user');
+      throw new UserUpdateFailedException();
     }
 
     return this.toDomain(updated);

@@ -11,8 +11,15 @@
   "errors.premium_required": "Premium abonelik gerekli",
   "errors.user.not_found": "Kullanici bulunamadi",
   "errors.user.already_exists": "{email} adresine sahip kullanici zaten mevcut",
+  "errors.user.creation_failed": "Kullanici olusturulamadi",
+  "errors.user.update_failed": "Kullanici guncellenemedi",
   "errors.asset.not_found": "Varlik bulunamadi",
   "errors.bank.not_found": "Banka bulunamadi",
   "errors.receipt.invalid": "Gecersiz satin alma makbuzu",
-  "errors.subscription.not_found": "Abonelik bulunamadi"
+  "errors.subscription.not_found": "Abonelik bulunamadi",
+  "errors.subscription.expired": "Abonelik suresi dolmus",
+  "errors.subscription.no_active_subscription": "Bu fatura anahtari icin aktif abonelik bulunamadi",
+  "errors.subscription.creation_failed": "Abonelik olusturulamadi",
+  "errors.subscription.update_failed": "Abonelik guncellenemedi",
+  "errors.subscription.webhook_log_creation_failed": "Webhook etkinligi kaydedilemedi"
 }

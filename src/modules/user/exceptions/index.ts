@@ -1,1 +1,6 @@
-export { UserNotFoundException, AssetNotFoundException } from './user.exceptions';
+export {
+  UserNotFoundException,
+  AssetNotFoundException,
+  UserCreationFailedException,
+  UserUpdateFailedException,
+} from './user.exceptions';

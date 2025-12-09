@@ -1,5 +1,5 @@
 export interface EntityProps {
-  id: number | string;
+  id: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

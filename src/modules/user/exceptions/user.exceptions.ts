@@ -1,4 +1,4 @@
-import { NotFoundException } from '@/shared/exceptions';
+import { InternalServerException, NotFoundException } from '@/shared/exceptions';
 
 export class UserNotFoundException extends NotFoundException {
   constructor() {
@@ -9,5 +9,17 @@ export class UserNotFoundException extends NotFoundException {
 export class AssetNotFoundException extends NotFoundException {
   constructor() {
     super('errors.asset.not_found');
+  }
+}
+
+export class UserCreationFailedException extends InternalServerException {
+  constructor() {
+    super('errors.user.creation_failed');
+  }
+}
+
+export class UserUpdateFailedException extends InternalServerException {
+  constructor() {
+    super('errors.user.update_failed');
   }
 }

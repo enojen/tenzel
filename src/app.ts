@@ -2,9 +2,8 @@ import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 
-import { createUserModule, DrizzleUserRepository } from './modules/_user-example';
 import { exceptionHandler } from './shared/exceptions';
-import { checkDatabaseHealth, db, passwordHasher } from './shared/infrastructure';
+import { checkDatabaseHealth } from './shared/infrastructure';
 import { requestIdMiddleware } from './shared/middleware';
 
 export function createApp() {
@@ -71,27 +70,7 @@ export function createApp() {
           tags: ['Health'],
         },
       },
-    )
-
-    .group('/api/v1', (api) => {
-      const userRepo = new DrizzleUserRepository(db);
-      const userDeps = { userRepo, passwordHasher };
-
-      return api
-        .get(
-          '/',
-          () => ({
-            message: 'API v1 is up',
-          }),
-          {
-            detail: {
-              summary: 'API v1 root',
-              tags: ['System'],
-            },
-          },
-        )
-        .use(createUserModule(userDeps));
-    });
+    );
 
   return app;
 }

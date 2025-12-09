@@ -27,14 +27,14 @@ class TestAggregate extends AggregateRoot<EntityProps> {
 describe('AggregateRoot', () => {
   describe('inheritance', () => {
     it('should inherit from Entity', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      expect(aggregate.id).toBe(1);
+      expect(aggregate.id).toBe('550e8400-e29b-41d4-a716-446655440000');
     });
 
     it('should support identity-based equality', () => {
-      const aggregate1 = new TestAggregate({ id: 1 });
-      const aggregate2 = new TestAggregate({ id: 1 });
+      const aggregate1 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const aggregate2 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
       expect(aggregate1.equals(aggregate2)).toBe(true);
     });
@@ -42,14 +42,14 @@ describe('AggregateRoot', () => {
 
   describe('domain events', () => {
     it('should start with empty events array', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
       expect(aggregate.getDomainEvents()).toEqual([]);
     });
 
     it('should add single domain event', () => {
-      const aggregate = new TestAggregate({ id: 1 });
-      const event = new TestEvent('TestEvent', 1);
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const event = new TestEvent('TestEvent', '550e8400-e29b-41d4-a716-446655440000');
 
       aggregate.triggerEvent(event);
 
@@ -58,10 +58,10 @@ describe('AggregateRoot', () => {
     });
 
     it('should add multiple domain events', () => {
-      const aggregate = new TestAggregate({ id: 1 });
-      const event1 = new TestEvent('Event1', 1);
-      const event2 = new TestEvent('Event2', 1);
-      const event3 = new TestEvent('Event3', 1);
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const event1 = new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000');
+      const event2 = new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000');
+      const event3 = new TestEvent('Event3', '550e8400-e29b-41d4-a716-446655440000');
 
       aggregate.triggerEvent(event1);
       aggregate.triggerEvent(event2);
@@ -74,8 +74,8 @@ describe('AggregateRoot', () => {
     });
 
     it('should return events as readonly copy', () => {
-      const aggregate = new TestAggregate({ id: 1 });
-      const event = new TestEvent('TestEvent', 1);
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const event = new TestEvent('TestEvent', '550e8400-e29b-41d4-a716-446655440000');
 
       aggregate.triggerEvent(event);
       const events = aggregate.getDomainEvents();
@@ -84,12 +84,12 @@ describe('AggregateRoot', () => {
     });
 
     it('should prevent external mutation of events array', () => {
-      const aggregate = new TestAggregate({ id: 1 });
-      const event1 = new TestEvent('Event1', 1);
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const event1 = new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000');
 
       aggregate.triggerEvent(event1);
       const events = aggregate.getDomainEvents();
-      const newEvent = new TestEvent('Event2', 1);
+      const newEvent = new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000');
 
       (events as DomainEvent[]).push(newEvent);
 
@@ -99,10 +99,10 @@ describe('AggregateRoot', () => {
 
   describe('clearDomainEvents', () => {
     it('should clear all events', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      aggregate.triggerEvent(new TestEvent('Event1', 1));
-      aggregate.triggerEvent(new TestEvent('Event2', 1));
+      aggregate.triggerEvent(new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'));
+      aggregate.triggerEvent(new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000'));
 
       expect(aggregate.getDomainEvents()).toHaveLength(2);
 
@@ -112,12 +112,12 @@ describe('AggregateRoot', () => {
     });
 
     it('should allow adding new events after clearing', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      aggregate.triggerEvent(new TestEvent('Event1', 1));
+      aggregate.triggerEvent(new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'));
       aggregate.clearDomainEvents();
 
-      const newEvent = new TestEvent('Event2', 1);
+      const newEvent = new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000');
       aggregate.triggerEvent(newEvent);
 
       expect(aggregate.getDomainEvents()).toHaveLength(1);
@@ -125,7 +125,7 @@ describe('AggregateRoot', () => {
     });
 
     it('should work when events array is empty', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
       expect(() => aggregate.clearDomainEvents()).not.toThrow();
       expect(aggregate.getDomainEvents()).toHaveLength(0);
@@ -134,8 +134,8 @@ describe('AggregateRoot', () => {
 
   describe('event details', () => {
     it('should preserve event name', () => {
-      const aggregate = new TestAggregate({ id: 1 });
-      const event = new TestEvent('UserCreatedEvent', 1);
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const event = new TestEvent('UserCreatedEvent', '550e8400-e29b-41d4-a716-446655440000');
 
       aggregate.triggerEvent(event);
 
@@ -152,9 +152,9 @@ describe('AggregateRoot', () => {
     });
 
     it('should preserve event occurrence time', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
       const occurredAt = new Date('2025-12-04T10:30:00Z');
-      const event = new TestEvent('TestEvent', 1, occurredAt);
+      const event = new TestEvent('TestEvent', '550e8400-e29b-41d4-a716-446655440000', occurredAt);
 
       aggregate.triggerEvent(event);
 
@@ -164,12 +164,12 @@ describe('AggregateRoot', () => {
 
   describe('sequential operations', () => {
     it('should maintain event order', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
       const events = [
-        new TestEvent('Event1', 1),
-        new TestEvent('Event2', 1),
-        new TestEvent('Event3', 1),
-        new TestEvent('Event4', 1),
+        new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'),
+        new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000'),
+        new TestEvent('Event3', '550e8400-e29b-41d4-a716-446655440000'),
+        new TestEvent('Event4', '550e8400-e29b-41d4-a716-446655440000'),
       ];
 
       events.forEach((event) => aggregate.triggerEvent(event));
@@ -181,16 +181,16 @@ describe('AggregateRoot', () => {
     });
 
     it('should handle add, clear, add cycle correctly', () => {
-      const aggregate = new TestAggregate({ id: 1 });
+      const aggregate = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
 
-      aggregate.triggerEvent(new TestEvent('Event1', 1));
-      aggregate.triggerEvent(new TestEvent('Event2', 1));
+      aggregate.triggerEvent(new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'));
+      aggregate.triggerEvent(new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440000'));
       expect(aggregate.getDomainEvents()).toHaveLength(2);
 
       aggregate.clearDomainEvents();
       expect(aggregate.getDomainEvents()).toHaveLength(0);
 
-      aggregate.triggerEvent(new TestEvent('Event3', 1));
+      aggregate.triggerEvent(new TestEvent('Event3', '550e8400-e29b-41d4-a716-446655440000'));
       expect(aggregate.getDomainEvents()).toHaveLength(1);
       expect(aggregate.getDomainEvents()[0]?.eventName).toBe('Event3');
     });
@@ -198,11 +198,11 @@ describe('AggregateRoot', () => {
 
   describe('multiple aggregates', () => {
     it('should maintain separate event collections', () => {
-      const aggregate1 = new TestAggregate({ id: 1 });
-      const aggregate2 = new TestAggregate({ id: 2 });
+      const aggregate1 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const aggregate2 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440001' });
 
-      aggregate1.triggerEvent(new TestEvent('Event1', 1));
-      aggregate2.triggerEvent(new TestEvent('Event2', 2));
+      aggregate1.triggerEvent(new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'));
+      aggregate2.triggerEvent(new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440001'));
 
       expect(aggregate1.getDomainEvents()).toHaveLength(1);
       expect(aggregate2.getDomainEvents()).toHaveLength(1);
@@ -211,11 +211,11 @@ describe('AggregateRoot', () => {
     });
 
     it('should not affect other aggregates when clearing', () => {
-      const aggregate1 = new TestAggregate({ id: 1 });
-      const aggregate2 = new TestAggregate({ id: 2 });
+      const aggregate1 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440000' });
+      const aggregate2 = new TestAggregate({ id: '550e8400-e29b-41d4-a716-446655440001' });
 
-      aggregate1.triggerEvent(new TestEvent('Event1', 1));
-      aggregate2.triggerEvent(new TestEvent('Event2', 2));
+      aggregate1.triggerEvent(new TestEvent('Event1', '550e8400-e29b-41d4-a716-446655440000'));
+      aggregate2.triggerEvent(new TestEvent('Event2', '550e8400-e29b-41d4-a716-446655440001'));
 
       aggregate1.clearDomainEvents();
 

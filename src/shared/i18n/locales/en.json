@@ -11,8 +11,15 @@
   "errors.premium_required": "Premium subscription required",
   "errors.user.not_found": "User not found",
   "errors.user.already_exists": "User with email {email} already exists",
+  "errors.user.creation_failed": "Failed to create user",
+  "errors.user.update_failed": "Failed to update user",
   "errors.asset.not_found": "Asset not found",
   "errors.bank.not_found": "Bank not found",
   "errors.receipt.invalid": "Invalid purchase receipt",
-  "errors.subscription.not_found": "No subscription found"
+  "errors.subscription.not_found": "No subscription found",
+  "errors.subscription.expired": "Subscription has expired",
+  "errors.subscription.no_active_subscription": "No active subscription found for this billing key",
+  "errors.subscription.creation_failed": "Failed to create subscription",
+  "errors.subscription.update_failed": "Failed to update subscription",
+  "errors.subscription.webhook_log_creation_failed": "Failed to log webhook event"
 }
